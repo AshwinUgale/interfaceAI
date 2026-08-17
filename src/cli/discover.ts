@@ -57,8 +57,10 @@ async function main() {
       goal,
       inputs,
       entryUrl: `${target}/`,
+      timeoutMs: 180000,
       successText: 'Review New Sub-Account',
       sensitiveOutputs: OUTPUT_SPECS.filter((o) => o.sensitivity !== 'plain').map((o) => o.name),
+      piiInputs: INPUT_SPECS.filter((i) => i.classification === 'pii').map((i) => i.name),
     });
     console.log(`[discover] brain=${brain.name} status=${outcome.status} steps=${outcome.events.length}`);
     if (outcome.status !== 'success') {

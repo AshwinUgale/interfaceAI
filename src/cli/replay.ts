@@ -42,7 +42,16 @@ async function main() {
     const result = await replay(capability, inputs, surface, evidence, { targetBase, approved });
     evidence.finalize('run.json', { artifact: artifactPath, targetBase, inputsMasked: { ...inputs, memberId: '(pii)' }, result });
     console.log(`[replay] status=${result.status}`);
-    if (result.status === 'success') console.log('[replay] outputs:', result.outputs);
+    if (result.status === 'success') {
+      // Do not print raw sensitive outputs to stdout (it lands in logs). Mask by sensitivity.
+      const shown = Object.fromEntries(
+        Object.entries(result.outputs).map(([k, v]) => {
+          const spec = capability.outputs.find((o) => o.name === k);
+          return [k, spec && spec.sensitivity !== 'plain' ? '(redacted)' : v];
+        })
+      );
+      console.log('[replay] outputs:', shown);
+    }
     if (result.status === 'business_outcome') console.log('[replay] business outcome:', result.code);
     if (result.status === 'failure') console.log('[replay] failure:', result.error);
     if (result.status === 'invalid_invocation') console.log('[replay] invalid invocation:', result.field, result.message);

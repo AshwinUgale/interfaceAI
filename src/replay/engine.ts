@@ -105,7 +105,7 @@ export async function replay(
       const url = new URL(step.url, opts.targetBase).toString();
       const r = await surface.navigate(url);
       steps.push({ stepId: step.id, action: 'navigate', ok: r.ok, note: url });
-      if (!r.ok) return fail('NAVIGATION_FAILED', step.id, url, r.error);
+      if (!r.ok) return fail(r.error?.startsWith('POLICY_DENIED') ? 'POLICY_DENIED' : 'NAVIGATION_FAILED', step.id, url, r.error);
       if (!preconChecked) {
         preconChecked = true;
         for (const p of capability.preconditions) {
@@ -143,6 +143,11 @@ export async function replay(
       attempts++;
       const { result, resolution } = await surface.resolveAndAct(target, step.action, value);
 
+      // A policy block is a hard failure in its own right — classify it before retry/side-effect logic.
+      if (result.error?.startsWith('POLICY_DENIED')) {
+        steps.push({ stepId: step.id, action: step.action, ok: false, resolution, attempts });
+        return fail('POLICY_DENIED', step.id, undefined, result.error);
+      }
       if (resolution.status === 'context_missing') {
         steps.push({ stepId: step.id, action: step.action, ok: false, resolution, attempts });
         return fail('TARGET_CONTEXT_NOT_FOUND', step.id, JSON.stringify(target.context), 'expected frame not present');

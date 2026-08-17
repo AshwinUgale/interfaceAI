@@ -3,12 +3,15 @@
 *~3 pages, the seven required headings. See [`README.md`](README.md) for setup and the exact
 discovery → replay demo commands.*
 
-The model **discovers** how to do a task on a live UI once; the run is compiled — from executed,
-verified events, not the raw transcript — into a typed, versioned **capability artifact**; a
+The model **discovers** how to do a task on a live UI once; the run is compiled — from successfully
+executed discovery events (of a run whose final goal state is independently verified), not the raw
+transcript — into a typed, versioned **capability artifact**; a
 **deterministic replay engine** (no LLM in the decision loop) re-runs it; and a real
 **human-handoff** takes over the same live session when the system can't safely proceed. It is
-implemented end-to-end: `npm run evidence` reproduces `/evidence` (a genuine `claude-sonnet-4-5`
-discovery run plus four replays), and `npm run test` runs 22 focused tests.
+implemented end-to-end: `npm run evidence` reproduces `/evidence` — a genuine `claude-sonnet-4-5`
+discovery run when `ANTHROPIC_API_KEY` is set (otherwise a scripted brain over the same
+observe/act/policy path, recorded honestly in provenance) plus four replays — and `npm run test`
+runs the focused suite.
 
 **Target:** a separately-running, deliberately legacy-style credit-union servicing tool (frameset +
 nested tables, no test IDs) with a data-driven fault-injection mode and a Tenant B variant. The
@@ -33,7 +36,7 @@ Single process, synchronous, files on disk — Section 9 doesn't reward scaling 
                           ▼
                       Target app  ◄── Test harness (fault injection; NOT an agent tool)
                           ▲
-      ArtifactCompiler (from EXECUTED+VERIFIED events) → artifact JSON ─load→ ReplayEngine (NO LLM)
+      ArtifactCompiler (from executed events; final goal state verified) → artifact ─load→ ReplayEngine (NO LLM)
                           │                                                        │ control token + resume
                           └───────────────── EvidenceRecorder ◄──── EscalationManager (AUTOMATION⇄HUMAN)
 ```
@@ -55,7 +58,7 @@ boundary — depth over breadth.
 
 ## 2. Artifact schema
 
-A typed capability contract, compiled from verified events, decoupled from the transcript
+A typed capability contract, compiled from executed discovery events (goal state verified), decoupled from the transcript
 (Zod-validated at emit and load):
 
 ```
@@ -67,8 +70,10 @@ Input  { name, type, required, classification: 'plain'|'pii' }        // never c
 Output { name, type, sensitivity: 'plain'|'pii'|'financial',
          extract {stepId, kind:'text'|'value'|'attribute'|'selectedOption', parse?:'currency'|…} }
 Step = Navigate|Click|Type|Select|Read|Wait|Assert                    // discriminated union
-  each: { id, intent, expectedEffect?, risk{class:'read'|'reversible_write'|'irreversible',
-          approval:'automatic'|'human_required'}, precondition?, checkpoint?, retryPolicy, onError? }
+  each: { id, intent, risk{class:'read'|'reversible_write'|'irreversible',   // param-step intents
+          approval:'automatic'|'human_required'},                            // are parameterized
+          precondition?, checkpoint?, retryPolicy, onError? }                // (Enter {memberId}…)
+  // the model's free-form expectedEffect is kept in discovery EVIDENCE (redacted), not the artifact
 TargetDescriptor { context{frames[]}, candidates: LocatorCandidate[],          // ordered cascade
   invariants{cardinality:'exactlyOne', mustBeVisible, mustBeEnabled, expectedRole?, expectedName?} }
 LocatorCandidate = roleName | labelledField | anchorCell | tableCell | text    // never raw px
@@ -125,8 +130,10 @@ non-terminal. Generic execution errors live in the engine; app-specific outcomes
 The `SurfaceDriver` is the seam between perceive/act and the recorded flow; the schema is
 surface-agnostic (semantic descriptors, frame context, predicates — no CSS). A desktop driver
 (UIAutomation/AX) would produce the same sparse node shape + screenshot — *semantic where available,
-visual geometry where necessary*. Precise claim: the **schema** ports unchanged; individual
-**locator candidates may be surface-specific** (a desktop `automationId` vs a web role/name/frame).
+visual geometry where necessary*. Precise claim: the **capability envelope, replay contract,
+predicates and control model port unchanged**; the `TargetDescriptor` candidate union would be
+**extended** with desktop-specific addressing (`automationId`, accessibility path, window, visual
+region) alongside the web strategies.
 Two axes: *application family/version* (the vendor product) is distinct from *tenant configuration*;
 tenant is **execution context**, not artifact data, so one artifact serves a family and the
 invocation selects a tenant. Values are parameterized deterministically by exact match
@@ -141,9 +148,12 @@ fallback rather than as drift.
 
 ## 5. Escalation & handoff
 
-**Detect "stuck" mechanically:** a discovery stop (max-steps / timeout / **dead-end** = observation
-fingerprint repeated N times, or a step failure), a replay recoverable rule with `action:escalate`,
-or a `human_required` risk gate. **Same session:** agent and human share one persistent
+**Detect "stuck" mechanically:** a discovery stop (max-steps / **wall-clock timeout** / **dead-end**
+= observation fingerprint repeated N times / a policy-blocked action), a replay recoverable rule
+with `action:escalate`, or a `human_required` risk gate. The **same handoff mechanism is
+system-wide**: when an operator is attached, a stuck *discovery* raises an intervention (screenshot +
+context), hands off, and resumes the observe loop — not only replay. **Same session:** agent and
+human share one persistent
 `BrowserContext` (cookies/storage preserved by reuse). Control is a state machine with an explicit
 lock — `AUTOMATION → HANDOFF_PENDING → HUMAN → RESUMING → (AUTOMATION|TERMINAL)` — with illegal
 transitions rejected (tested), and automation asserts ownership before acting. On escalation the
@@ -197,11 +207,13 @@ production.
 
 Operator console + granular human-action capture mocked (transfer semantics real); desktop driver
 designed not built; multi-tenant plumbing not built (one Tenant B overlay demo instead); no
-queue/scheduler/workers; secret provider + login designed, not built (no auth in the demo); output/
-screenshot redaction is a one-line/cut extension of the working input redaction; **no automatic
-artifact self-healing** (fallbacks are used + logged; new versions come only from reviewed
-re-recording); version-fingerprint preflight and open-ended LLM replay recovery out (replay
-escalates instead); no full browser sandbox. **What I'd build next:** an agent-facing capability
+queue/scheduler/workers; secret provider + login designed, not built (no auth in the demo);
+**screenshot-level (pixel) redaction is a cut** — input/output/log redaction is implemented and no
+success screenshot is taken; **no automatic artifact self-healing** (fallbacks are used + logged;
+new versions come only from reviewed re-recording); version-fingerprint preflight and open-ended LLM
+replay recovery out (replay escalates instead); no full browser sandbox; parameter-aware success
+predicates (asserting the review shows the invoked `accountType`/`openingDeposit`) noted as a next
+schema step. **What I'd build next:** an agent-facing capability
 catalog (typed tool endpoints); a draft→approved confidence gate from multi-run stability; a
 bounded, policy-checked single-step LLM recovery on replay failure; an external approval registry
 bound to artifact digests.

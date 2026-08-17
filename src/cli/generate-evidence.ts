@@ -46,8 +46,10 @@ async function discovery(): Promise<{ capability: Capability; sha: string }> {
       goal: "Look up member 10001. Read the member's name and bind it to output 'memberName'. Read the current savings balance and bind it to output 'savingsBalance'. Then open a new savings sub-account with a 500 dollar opening deposit and reach the review screen. Do not click Create Account.",
       inputs,
       entryUrl: `${BASE}/`,
+      timeoutMs: 180000,
       successText: 'Review New Sub-Account',
       sensitiveOutputs: OUTPUT_SPECS.filter((o) => o.sensitivity !== 'plain').map((o) => o.name),
+      piiInputs: INPUT_SPECS.filter((i) => i.classification === 'pii').map((i) => i.name),
     });
     if (outcome.status !== 'success') throw new Error(`discovery failed: ${outcome.status} ${outcome.reason ?? ''}`);
     const capability = compile(outcome.events, {

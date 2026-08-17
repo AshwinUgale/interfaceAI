@@ -68,15 +68,25 @@ describe('artifact compiler (deterministic, no LLM)', () => {
     expect('value' in typeStep && typeStep.value).toEqual({ param: 'memberId' });
   });
 
-  it('scrubs member PII from intent text (no 10001 anywhere in the artifact)', () => {
+  it('scrubs/parameterizes member PII in intent text (no 10001 anywhere in the artifact)', () => {
     const typeStep = cap.steps.find((s) => s.action === 'type')!;
-    expect(typeStep.intent).toBe('Enter the member ID {memberId} to search');
+    expect(typeStep.intent).toContain('{memberId}');
+    expect(typeStep.intent).not.toContain('10001');
     expect(JSON.stringify(cap)).not.toContain('10001');
   });
 
   it('parameterizes accountType from the canonical select value (not the label)', () => {
     const selectStep = cap.steps.find((s) => s.action === 'select')!;
     expect('value' in selectStep && selectStep.value).toEqual({ param: 'accountType' });
+  });
+
+  it('parameterizes the reviewable intent too (no discovery-time value in a param step)', () => {
+    const selectStep = cap.steps.find((s) => s.action === 'select')!;
+    expect(selectStep.intent).toContain('{accountType}');
+    expect(selectStep.intent).not.toContain('Savings');
+    // ...but a descriptive read intent that mentions the existing "savings balance" is NOT corrupted.
+    const readBalance = cap.steps.find((s) => s.action === 'read' && s.id !== cap.outputs[0]!.extract.stepId);
+    expect(readBalance).toBeTruthy();
   });
 
   it('marks a POST submit click as not safe to re-dispatch', () => {

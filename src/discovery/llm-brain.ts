@@ -13,13 +13,15 @@ Rules:
 - Use the exact input values provided by the user to fill fields.
 - Read the values the goal asks for using the read tool, binding each to an output name.
 - Call finish when the goal state (the review screen) is reached.
+- For every action, include a short expectedEffect describing the state you expect to observe after it.
 - Safety: never click an irreversible "Create Account" control. Reaching the review screen is the goal.`;
 
+const EFFECT = { type: 'string' as const, description: 'The state you expect to observe after this action' };
 const TOOLS: Anthropic.Tool[] = [
-  { name: 'click', description: 'Click an element by ref', input_schema: { type: 'object', properties: { ref: { type: 'string' }, intent: { type: 'string' } }, required: ['ref', 'intent'] } },
-  { name: 'type', description: 'Type a value into a field by ref', input_schema: { type: 'object', properties: { ref: { type: 'string' }, value: { type: 'string' }, intent: { type: 'string' } }, required: ['ref', 'value', 'intent'] } },
-  { name: 'select', description: 'Select an option in a dropdown by ref', input_schema: { type: 'object', properties: { ref: { type: 'string' }, value: { type: 'string' }, intent: { type: 'string' } }, required: ['ref', 'value', 'intent'] } },
-  { name: 'read', description: 'Read text from an element and bind it to an output name', input_schema: { type: 'object', properties: { ref: { type: 'string' }, output: { type: 'string' }, intent: { type: 'string' } }, required: ['ref', 'output', 'intent'] } },
+  { name: 'click', description: 'Click an element by ref', input_schema: { type: 'object', properties: { ref: { type: 'string' }, intent: { type: 'string' }, expectedEffect: EFFECT }, required: ['ref', 'intent', 'expectedEffect'] } },
+  { name: 'type', description: 'Type a value into a field by ref', input_schema: { type: 'object', properties: { ref: { type: 'string' }, value: { type: 'string' }, intent: { type: 'string' }, expectedEffect: EFFECT }, required: ['ref', 'value', 'intent', 'expectedEffect'] } },
+  { name: 'select', description: 'Select an option in a dropdown by ref', input_schema: { type: 'object', properties: { ref: { type: 'string' }, value: { type: 'string' }, intent: { type: 'string' }, expectedEffect: EFFECT }, required: ['ref', 'value', 'intent', 'expectedEffect'] } },
+  { name: 'read', description: 'Read text from an element and bind it to an output name', input_schema: { type: 'object', properties: { ref: { type: 'string' }, output: { type: 'string' }, intent: { type: 'string' }, expectedEffect: EFFECT }, required: ['ref', 'output', 'intent', 'expectedEffect'] } },
   { name: 'finish', description: 'Signal the goal is complete', input_schema: { type: 'object', properties: { intent: { type: 'string' } }, required: ['intent'] } },
 ];
 
@@ -64,17 +66,18 @@ export class LlmBrain implements Brain {
     if (!tu) return { kind: 'finish', intent: 'model produced no tool call' };
     this.pendingToolUseId = tu.id;
     const input = tu.input as Record<string, string>;
+    const eff = input.expectedEffect;
     switch (tu.name) {
       case 'finish':
         return { kind: 'finish', intent: input.intent ?? 'finish' };
       case 'click':
-        return { kind: 'act', action: 'click', ref: input.ref as Decision['ref'], intent: input.intent! };
+        return { kind: 'act', action: 'click', ref: input.ref as Decision['ref'], intent: input.intent!, expectedEffect: eff };
       case 'type':
-        return { kind: 'act', action: 'type', ref: input.ref as Decision['ref'], value: input.value, intent: input.intent! };
+        return { kind: 'act', action: 'type', ref: input.ref as Decision['ref'], value: input.value, intent: input.intent!, expectedEffect: eff };
       case 'select':
-        return { kind: 'act', action: 'select', ref: input.ref as Decision['ref'], value: input.value, intent: input.intent! };
+        return { kind: 'act', action: 'select', ref: input.ref as Decision['ref'], value: input.value, intent: input.intent!, expectedEffect: eff };
       case 'read':
-        return { kind: 'act', action: 'read', ref: input.ref as Decision['ref'], bindOutput: input.output, intent: input.intent! };
+        return { kind: 'act', action: 'read', ref: input.ref as Decision['ref'], bindOutput: input.output, intent: input.intent!, expectedEffect: eff };
       default:
         return { kind: 'finish', intent: `unknown tool ${tu.name}` };
     }

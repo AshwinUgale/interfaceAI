@@ -72,6 +72,12 @@ function descriptorFrom(resolved: ResolvedTarget, mustBeEnabled: boolean, expect
   };
 }
 
+/** Deterministic, parameterized intent for a param-bearing step (never shows the concrete value). */
+function paramIntent(action: 'type' | 'select', param: string, anchorText?: string): string {
+  const where = anchorText ? ` into "${anchorText}"` : '';
+  return action === 'type' ? `Enter {${param}}${where}` : `Select {${param}}${anchorText ? ` for "${anchorText}"` : ''}`;
+}
+
 function valueSource(raw: string | undefined, inputs: Record<string, string>): ValueSource {
   if (raw !== undefined) {
     for (const [name, val] of Object.entries(inputs)) {
@@ -99,7 +105,10 @@ export function compile(events: ExecutionEvent[], opts: CompileOptions): Capabil
 
   events.forEach((ev, i) => {
     const id = `step-${String(i).padStart(2, '0')}`;
-    const common = { id, intent: scrub(ev.intent)!, ...(ev.expectedEffect ? { expectedEffect: scrub(ev.expectedEffect) } : {}) };
+    // NOTE: the model's free-form expectedEffect is intentionally NOT persisted into the durable
+    // artifact — it is discovery diagnostic and can echo page data (member name/balance). It lives
+    // (redacted) in the discovery evidence instead. Intents are PII-scrubbed.
+    const common = { id, intent: scrub(ev.intent)! };
 
     if (ev.action === 'navigate') {
       let path = '/';
@@ -114,20 +123,25 @@ export function compile(events: ExecutionEvent[], opts: CompileOptions): Capabil
     if (!ev.resolved) return;
 
     if (ev.action === 'type') {
+      const value = valueSource(ev.rawValue, opts.inputs);
       steps.push({
         ...common,
+        // Parameterize the reviewable intent too, so it doesn't show the discovery-time value.
+        intent: 'param' in value ? paramIntent('type', value.param, ev.resolved.anchorText) : common.intent,
         action: 'type',
         target: descriptorFrom(ev.resolved, true, ev.resolved.name || undefined),
-        value: valueSource(ev.rawValue, opts.inputs),
+        value,
         risk: riskFor(ev.routeRisk),
         retryPolicy: FILL_RETRY,
       });
     } else if (ev.action === 'select') {
+      const value = valueSource(ev.rawValue, opts.inputs);
       steps.push({
         ...common,
+        intent: 'param' in value ? paramIntent('select', value.param, ev.resolved.anchorText) : common.intent,
         action: 'select',
         target: descriptorFrom(ev.resolved, true, ev.resolved.name || undefined),
-        value: valueSource(ev.rawValue, opts.inputs),
+        value,
         risk: riskFor(ev.routeRisk),
         retryPolicy: FILL_RETRY,
       });

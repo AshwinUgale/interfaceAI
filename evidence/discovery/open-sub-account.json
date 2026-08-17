@@ -3,7 +3,7 @@
   "capabilityId": "open-sub-account",
   "capabilityVersion": "1.0.0",
   "name": "Open a member sub-account and reach the review screen",
-  "description": "Look up a member, read their current s**** balance, open a new sub-account of a given type with an opening deposit, and reach the review screen. Does not create the account (irreversible; human-required).",
+  "description": "Look up a member, read their current savings balance, open a new sub-account of a given type with an opening deposit, and reach the review screen. Does not create the account (irreversible; human-required).",
   "recordedAgainst": {
     "applicationFamily": "legacy-cu-servicing",
     "surface": "legacyWeb",
@@ -33,7 +33,7 @@
       "type": "string",
       "required": true,
       "classification": "plain",
-      "description": "Sub-account type (s**** | money-market | certificate)"
+      "description": "Sub-account type (savings | money-market | certificate)"
     },
     {
       "name": "openingDeposit",
@@ -55,10 +55,10 @@
       }
     },
     {
-      "name": "s****Balance",
+      "name": "savingsBalance",
       "type": "money",
       "sensitivity": "financial",
-      "description": "Current s**** balance",
+      "description": "Current savings balance",
       "extract": {
         "stepId": "step-04",
         "kind": "text",
@@ -87,7 +87,7 @@
     },
     {
       "id": "step-01",
-      "intent": "Enter the member ID {memberId} to search for the member",
+      "intent": "Enter {memberId} into \"Member ID\"",
       "action": "type",
       "target": {
         "context": {
@@ -131,7 +131,7 @@
     },
     {
       "id": "step-02",
-      "intent": "Click Search to look up member {memberId}",
+      "intent": "Click Search button to find member {memberId}",
       "action": "click",
       "target": {
         "context": {
@@ -201,7 +201,7 @@
     },
     {
       "id": "step-03",
-      "intent": "Read the member's name and bind it to output 'memberName'",
+      "intent": "Read the member's name",
       "action": "read",
       "target": {
         "context": {
@@ -245,7 +245,7 @@
     },
     {
       "id": "step-04",
-      "intent": "Read the current s**** balance and bind it to output 's****Balance'",
+      "intent": "Read the current savings balance",
       "action": "read",
       "target": {
         "context": {
@@ -276,7 +276,7 @@
           "tableCell"
         ]
       },
-      "bindOutput": "s****Balance",
+      "bindOutput": "savingsBalance",
       "risk": {
         "class": "read",
         "approval": "automatic"
@@ -292,7 +292,7 @@
     },
     {
       "id": "step-05",
-      "intent": "Click 'Open New Account' to start opening a new s**** sub-account",
+      "intent": "Click 'Open New Account' to begin opening a new savings sub-account",
       "action": "click",
       "target": {
         "context": {
@@ -354,7 +354,7 @@
     },
     {
       "id": "step-06",
-      "intent": "Select 'Savings' as the account type",
+      "intent": "Select {accountType} for \"Account Type\"",
       "action": "select",
       "target": {
         "context": {
@@ -398,7 +398,7 @@
     },
     {
       "id": "step-07",
-      "intent": "Enter the opening deposit amount of 5** dollars",
+      "intent": "Enter {openingDeposit} into \"Opening Deposit\"",
       "action": "type",
       "target": {
         "context": {
@@ -442,7 +442,7 @@
     },
     {
       "id": "step-08",
-      "intent": "Click 'Continue to Review' to reach the review screen",
+      "intent": "Click 'Continue to Review' to proceed to the review screen",
       "action": "click",
       "target": {
         "context": {
