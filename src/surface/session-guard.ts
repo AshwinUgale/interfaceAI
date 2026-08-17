@@ -20,12 +20,13 @@ export class SessionGuard {
   constructor(private readonly policy: PolicyEngine) {}
 
   async attach(context: BrowserContext): Promise<void> {
-    // Enforce origin AND route allowlist (by actual method) on every document navigation — main
-    // frame or subframe. This holds for automation navigations, link clicks, form submits, and
-    // human-driven navigation during takeover.
+    // Enforce origin AND route allowlist (by actual method) on every document navigation AND every
+    // mutating request (POST/PUT/PATCH/DELETE) — the latter closes the gap where a JS-driven button
+    // mutates via fetch/XHR without a form navigation. Holds during human takeover too.
+    const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
     await context.route('**/*', async (route) => {
       const req = route.request();
-      if (req.isNavigationRequest()) {
+      if (req.isNavigationRequest() || MUTATING.has(req.method())) {
         const url = req.url();
         let path = '/';
         try {

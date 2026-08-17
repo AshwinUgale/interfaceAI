@@ -16,6 +16,8 @@ export interface DiscoveryConfig {
   maxSteps?: number;
   /** Text that must be present when the model calls finish, else the run is rejected as incomplete. */
   successText?: string;
+  /** Output names whose read VALUES are sensitive — registered for redaction the moment they're read. */
+  sensitiveOutputs?: string[];
 }
 
 export interface DiscoveryOutcome {
@@ -67,8 +69,9 @@ export async function runDiscovery(
         evidence.log('finish_rejected', { step, successText: config.successText });
         return { status: 'incomplete', reason: `finish before success condition (${config.successText})`, events };
       }
-      evidence.log('discovery_finish', { step, intent: decision.intent });
-      await evidence.shot(surface, 'discovery-final');
+      // Do NOT persist the model's free-form finish prose (it may echo page data); the verified
+      // success predicate is the record. No final screenshot — the success screen shows member data.
+      evidence.log('discovery_finish', { step, successConditionVerified: !!config.successText });
       return { status: 'success', events };
     }
 
@@ -76,8 +79,16 @@ export async function runDiscovery(
     const routeRisk = computeRouteRisk(policy, decision, node?.attrs.formAction, node?.attrs.formMethod, surface.currentUrl());
 
     const result = await surface.act({ type: decision.action!, ref: decision.ref, url: decision.url, value: decision.value });
+
+    // Register sensitive read VALUES for redaction IMMEDIATELY — before any later model text (e.g. a
+    // finish explanation) that might echo them is persisted.
+    if (result.ok && decision.action === 'read' && decision.bindOutput && result.readValue && config.sensitiveOutputs?.includes(decision.bindOutput)) {
+      evidence.registerSensitive(result.readValue);
+    }
+    // Structured "what & why": the model's declared intent + expected effect (not chain-of-thought).
+    evidence.log('decision', { step, action: decision.action, intent: decision.intent, expectedEffect: decision.expectedEffect, ok: result.ok });
+
     if (!result.ok) {
-      evidence.log('act_failed', { step, intent: decision.intent, error: result.error });
       const blocked = result.error?.startsWith('POLICY_DENIED');
       return { status: blocked ? 'blocked' : 'failed', reason: result.error, events };
     }

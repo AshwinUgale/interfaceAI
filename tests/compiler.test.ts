@@ -22,6 +22,14 @@ const events: ExecutionEvent[] = [
     resolved: { role: 'cell', name: 'Jane A. Rivera', framePath: ['workspace'], anchorText: 'Member Name', rowText: 'Member NameJane A. Rivera', candidates: [{ strategy: 'tableCell', rowContainsText: 'Member Name', column: 2 }] },
   },
   {
+    intent: 'read savings balance',
+    action: 'read',
+    bindOutput: 'savingsBalance',
+    readValue: '$4,250.00',
+    routeRisk: 'read',
+    resolved: { role: 'cell', name: '$4,250.00', framePath: ['workspace', 'accountSummary'], anchorText: 'Savings', rowText: 'Savings$4,250.00', candidates: [{ strategy: 'tableCell', rowContainsText: 'Savings', column: 2 }] },
+  },
+  {
     // Model selected the LABEL "Savings"; the driver reports canonical value "savings".
     intent: 'choose account type',
     action: 'select',

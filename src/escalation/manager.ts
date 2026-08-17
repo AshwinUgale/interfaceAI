@@ -24,8 +24,10 @@ export interface InterventionRequest {
 }
 
 export interface EscalationOptions {
-  /** Simulated human for automated runs. Should fix state and then call resume(). */
+  /** Simulated human for automated runs/tests. Should fix state and then call resume(). */
   autoResolver?: (req: InterventionRequest, resume: () => void) => Promise<void>;
+  /** Called when an intervention is raised (e.g. to prompt a real operator). Fires before waiting. */
+  onEscalate?: (req: InterventionRequest) => void;
 }
 
 export class EscalationManager {
@@ -43,6 +45,7 @@ export class EscalationManager {
     this.evidence.log('intervention_raised', { ...req, control: this.token.state });
     this.evidence.writeJson(`intervention-${req.stepId}.json`, req);
     this.token.to('HUMAN');
+    this.opts.onEscalate?.(req);
 
     const waitForResume = new Promise<void>((resolve) => {
       this.pending = resolve;

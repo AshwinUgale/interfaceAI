@@ -28,6 +28,11 @@ export const zTargetDescriptor = z.object({
     cardinality: z.literal('exactlyOne'),
     mustBeVisible: z.boolean(),
     mustBeEnabled: z.boolean(),
+    // Enforced at resolve time: cardinality (exactlyOne), visibility, enabled, and frame context.
+    // `expectedRole`/`expectedName` are ADVISORY review metadata recorded from discovery — the
+    // recorded role and the control's accessible name or anchor LABEL (for a value read this is the
+    // label, e.g. "Member Name", not the value). They are not re-verified (the candidate strategy
+    // already encodes role/name for roleName candidates).
     expectedRole: zRole.optional(),
     expectedName: z.string().optional(),
   }),
@@ -180,6 +185,24 @@ export const zCapability = z.object({
     model: z.object({ provider: z.string(), id: z.string() }),
     approvalState: z.enum(['draft', 'approved']),
   }),
+}).superRefine((cap, ctx) => {
+  // Cross-field integrity: params/outputs/extract must reference declared, existing things.
+  const inputNames = new Set(cap.inputs.map((i) => i.name));
+  const outputNames = new Set(cap.outputs.map((o) => o.name));
+  const readStepIds = new Set(cap.steps.filter((s) => s.action === 'read').map((s) => s.id));
+  for (const s of cap.steps) {
+    if ((s.action === 'type' || s.action === 'select') && 'param' in s.value && !inputNames.has(s.value.param)) {
+      ctx.addIssue({ code: 'custom', message: `step ${s.id} references undeclared input '${s.value.param}'` });
+    }
+    if (s.action === 'read' && !outputNames.has(s.bindOutput)) {
+      ctx.addIssue({ code: 'custom', message: `read step ${s.id} binds undeclared output '${s.bindOutput}'` });
+    }
+  }
+  for (const o of cap.outputs) {
+    if (!readStepIds.has(o.extract.stepId)) {
+      ctx.addIssue({ code: 'custom', message: `output '${o.name}' extract.stepId '${o.extract.stepId}' is not a read step` });
+    }
+  }
 });
 
 export type Capability = z.infer<typeof zCapability>;

@@ -63,8 +63,19 @@ export function createApp(tenantId: string | undefined): Express {
     const m = data.getMember(id);
     if (!m) return res.type('html').send(R.notFoundPage(t, id));
     if (m.restricted) return res.type('html').send(R.permissionDeniedPage(t, id));
-    if (m.poisonSession) return res.type('html').send(R.sessionExpiredPage(t));
+    if (m.poisonSession) return res.type('html').send(R.sessionExpiredPage(t, id));
     return res.type('html').send(R.openAccountFormPage(t, m));
+  });
+
+  // Re-authentication: restores the session (clears the expiry) and returns to the member record.
+  // This is a real UI action a human (or the resumed automation) performs — not a private harness call.
+  app.get('/reauth', (req, res) => {
+    const id = String(req.query.member ?? '').trim();
+    if (id) {
+      data.clearPoison(id);
+      return res.redirect(`/member/${id}`);
+    }
+    return res.redirect('/search');
   });
 
   // Reach the review screen (reversible; commits nothing).

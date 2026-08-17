@@ -288,10 +288,9 @@ export class WebSurfaceDriver implements SurfaceDriver {
     for (const frame of page.frames()) {
       if (this.framePathOf(frame).join('/') === path.join('/')) return frame;
     }
-    // Exact frame context missing. Fall back to the top page ONLY for a single-document page
-    // (no child frames) — the post-handoff bare-page case. Otherwise fail closed (no guessing a
-    // different same-named frame): the caller reports context_missing.
-    return page.frames().length > 1 ? null : page;
+    // Exact recorded frame context missing → fail closed (never guess a different frame or the top
+    // page). The caller reports context_missing → TARGET_CONTEXT_NOT_FOUND.
+    return null;
   }
 
   private buildLocator(scope: Frame | Page, cand: LocatorCandidate): Locator {

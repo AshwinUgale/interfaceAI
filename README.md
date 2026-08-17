@@ -63,6 +63,17 @@ npm run replay -- --artifact artifacts/open-sub-account.json --overlay overlays/
 Proof the LLM is absent from replay: `ANTHROPIC_API_KEY= npm run replay -- …` still works, and the
 replay log records `llmCalls: 0`.
 
+**Human handoff** (real, headed browser — a person operates the same live session):
+
+```bash
+npm run handoff
+```
+
+Replays member `99999` (whose session expires mid-flow), pauses on escalation, and hands you the
+live browser. Click **Sign in** to re-authenticate (`/reauth`, a real UI action), then press ENTER
+to hand control back — automation resumes on the same session and completes. The `npm run evidence`
+handoff run uses a simulated operator performing the same steps.
+
 ## Tests
 
 ```bash

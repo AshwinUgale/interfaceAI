@@ -47,6 +47,7 @@ async function discovery(): Promise<{ capability: Capability; sha: string }> {
       inputs,
       entryUrl: `${BASE}/`,
       successText: 'Review New Sub-Account',
+      sensitiveOutputs: OUTPUT_SPECS.filter((o) => o.sensitivity !== 'plain').map((o) => o.name),
     });
     if (outcome.status !== 'success') throw new Error(`discovery failed: ${outcome.status} ${outcome.reason ?? ''}`);
     const capability = compile(outcome.events, {
@@ -94,10 +95,10 @@ async function replayScenario(
     if (extra?.escalationMemberId) {
       escalation = new EscalationManager(evidence, {
         autoResolver: async (req, resume) => {
-          escalation!.recordHumanAction(req.stepId, 'Re-authenticated the expired session and returned to the member record.');
-          await harnessPost(targetBase, '/_harness/clear-poison', { memberId: extra.escalationMemberId });
-          // Return WITHIN the frameset (workspace shows the member) — same session, not a bare page.
-          await surface.navigate(`${targetBase}/?ws=/member/${extra.escalationMemberId}`);
+          escalation!.recordHumanAction(req.stepId, 'Re-authenticated the expired session via /reauth and returned to the member record.');
+          // Real re-auth through the UI (workspace loads /reauth, which restores the session and
+          // redirects to the member), staying in the SAME frameset session — no private harness call.
+          await surface.navigate(`${targetBase}/?ws=/reauth?member=${extra.escalationMemberId}`);
           resume();
         },
       });

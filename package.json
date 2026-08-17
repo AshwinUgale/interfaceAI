@@ -9,6 +9,7 @@
     "target:tenant-b": "cross-env TENANT=tenant-b PORT=4001 tsx src/target-app/index.ts",
     "discover": "tsx src/cli/discover.ts",
     "replay": "tsx src/cli/replay.ts",
+    "handoff": "tsx src/cli/handoff.ts",
     "evidence": "tsx src/cli/generate-evidence.ts",
     "test": "vitest run",
     "typecheck": "tsc --noEmit"

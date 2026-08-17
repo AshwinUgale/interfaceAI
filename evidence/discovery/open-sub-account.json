@@ -131,7 +131,7 @@
     },
     {
       "id": "step-02",
-      "intent": "Click the Search button to look up member {memberId}",
+      "intent": "Click Search to look up member {memberId}",
       "action": "click",
       "target": {
         "context": {
@@ -201,7 +201,7 @@
     },
     {
       "id": "step-03",
-      "intent": "Read the member's name and bind it to memberName",
+      "intent": "Read the member's name and bind it to output 'memberName'",
       "action": "read",
       "target": {
         "context": {
@@ -245,7 +245,7 @@
     },
     {
       "id": "step-04",
-      "intent": "Read the current s**** balance and bind it to s****Balance",
+      "intent": "Read the current s**** balance and bind it to output 's****Balance'",
       "action": "read",
       "target": {
         "context": {
@@ -292,7 +292,7 @@
     },
     {
       "id": "step-05",
-      "intent": "Click the Open New Account link to start opening a new s**** sub-account",
+      "intent": "Click 'Open New Account' to start opening a new s**** sub-account",
       "action": "click",
       "target": {
         "context": {
@@ -354,7 +354,7 @@
     },
     {
       "id": "step-06",
-      "intent": "Select Savings as the account type",
+      "intent": "Select 'Savings' as the account type",
       "action": "select",
       "target": {
         "context": {
@@ -442,7 +442,7 @@
     },
     {
       "id": "step-08",
-      "intent": "Click Continue to Review button to proceed to the review screen",
+      "intent": "Click 'Continue to Review' to reach the review screen",
       "action": "click",
       "target": {
         "context": {

@@ -157,8 +157,27 @@ export async function replay(
         return fail('TARGET_NOT_FOUND', step.id, JSON.stringify(target.candidates[0]));
       }
       if (!result.ok) {
-        // Idempotency guard: only retry when safe.
-        if (retry.safeToRetry && attempts < retry.maxAttempts) continue;
+        // Retry only a safe (idempotent) action AND only when TRANSIENT_LOAD is a declared retryOn
+        // condition — honoring the schema's retryOn, not just safeToRetry.
+        if (retry.safeToRetry && attempts < retry.maxAttempts && retry.retryOn.includes('TRANSIENT_LOAD')) continue;
+        // A side-effecting action (never re-dispatched) whose outcome is unconfirmed: escalate with
+        // sideEffectUncertain=true so a human verifies real state before anything else acts.
+        if (!retry.safeToRetry && opts.escalation && escalations < 1) {
+          escalations++;
+          const shot = await evidence.shot(surface, 'uncertain-side-effect');
+          await opts.escalation.escalate({
+            capabilityId: capability.capabilityId,
+            goal: capability.name,
+            stepId: step.id,
+            reason: 'action dispatched but outcome could not be confirmed',
+            actionState: 'sent_but_unconfirmed',
+            sideEffectUncertain: true,
+            screenshotRef: shot,
+            currentUrl: surface.currentUrl(),
+          });
+          steps.push({ stepId: step.id, action: step.action, ok: false, resolution, attempts, note: 'sideEffectUncertain' });
+          return fail('SIDE_EFFECT_UNCERTAIN', step.id, undefined, result.error);
+        }
         steps.push({ stepId: step.id, action: step.action, ok: false, resolution, attempts });
         return fail('ACTION_FAILED', step.id, undefined, result.error);
       }

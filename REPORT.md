@@ -85,7 +85,9 @@ replay otherwise can't say which frame a control is in, and the balance lives in
 never a silent `matches[0]`). Per-step `risk` (business effect, not HTML verb) is the only honest
 model for a flow mixing safe reads and an irreversible button. `retryPolicy.safeToRetry`,
 `Output.extract`+`sensitivity`, and the label-anchored read locator (so the artifact carries no
-member value) are the details a schema usually misses — verified PII-free by test.
+member value) are the details a schema usually misses — verified PII-free by test. A `superRefine`
+pass enforces cross-field integrity: every `{param}` references a declared input, every read binds a
+declared output, and every output's `extract.stepId` points at a real read step.
 
 ## 3. Determinism & error handling
 
@@ -99,11 +101,12 @@ preconditions are asserted at entry and each action step verifies its `checkpoin
 successful fallback.
 
 **Retry/idempotency (the load-bearing safety call):** only safe (idempotent) actions are retried,
-and only on the declared `retryOn` conditions — the engine retries the *resolve/wait*, never
-re-dispatches a `safeToRetry:false` action. A side-effecting action whose result is unconfirmed is
-**not** retried; it fails fast with step context, and the intervention contract carries a
-`sideEffectUncertain` flag so a human verifies real state before acting. This is what prevents a
-duplicate transaction.
+and only when the failure's declared `retryOn` condition (`TRANSIENT_LOAD` / `CHECKPOINT_TIMEOUT`)
+matches — the engine retries the *resolve/wait*, never re-dispatches a `safeToRetry:false` action
+(POST submits and irreversible actions are compiled as such). A side-effecting action whose result
+is unconfirmed **escalates with `sideEffectUncertain=true`** when an operator is attached (else fails
+fast with step context), so a human verifies real state before anything else acts. This is what
+prevents a duplicate transaction.
 
 | Class | Example | Response | Result |
 |---|---|---|---|
@@ -147,10 +150,14 @@ transitions rejected (tested), and automation asserts ownership before acting. O
 manager quiesces automation, writes an **intervention record** (`intervention-<step>.json`:
 capability/goal, current step, reason, `outcomeCode`, a screenshot ref, current URL, and the
 `actionState`/`sideEffectUncertain` uncertainty context), hands off, records the human's action as
-an evidence event, and resumes on a **real in-process signal** (`EscalationManager.resume()`) — a
-CLI/HTTP wrapper is trivial and not built; for automated evidence a simulated operator calls it.
-Replay resume is **deterministic**: the engine re-attempts the current step (re-resolve + re-check),
-no model decides where to resume. **Human actions never silently become production automation** — in
+an evidence event, and resumes on a **real signal** (`EscalationManager.resume()`). A genuine
+human-operable path exists: **`npm run handoff`** launches a *headed* browser, pauses on escalation,
+and hands the same live session to a real operator who **re-authenticates via the UI** (clicking
+**Sign in** → `/reauth`, a real allowlisted route that restores the session — not a private harness
+call) and presses ENTER to hand back. The automated `replay-handoff` evidence uses a *simulated*
+operator that performs the same `/reauth` UI step and calls the same `resume()`. Replay resume is
+**deterministic**: the engine re-attempts the current step (re-resolve + re-check), no model decides
+where to resume. **Human actions never silently become production automation** — in
 replay they never mutate the artifact; discovery-captured human steps would land in a `draft`
 capability pending review. Console UI and granular in-page action capture are documented cuts; the
 control-transfer semantics are real and exercised by the `replay-handoff` evidence (session expiry →
@@ -163,7 +170,8 @@ replay**. A replay click on a form submit is re-checked against the allowlist's 
 **independent of the artifact's declared risk**, so a tampered artifact that mislabels an
 irreversible action (`/account/create`) as `automatic` is still blocked (tested). **`SessionGuard`**
 enforces containment at the browser-context level (allowlisted origin **and** route on every
-navigation, by method; blocks downloads/popups) and **stays active during human takeover**, because
+navigation **and every mutating request** — POST/PUT/PATCH/DELETE, by method, closing the JS
+`fetch`/XHR bypass; blocks downloads/popups) and **stays active during human takeover**, because
 human clicks don't pass through `act()` — closing the "single choke point" gap honestly. Risk is
 per-step, deterministic, **fail-closed** (unknown ⇒ `human_required`); a missing frame context is a
 fail-closed `TARGET_CONTEXT_NOT_FOUND`, not a silent fallback. **PII ≠
@@ -172,8 +180,12 @@ stored in the artifact (verified PII-free); credentials would come from a separa
 (the demo app has no login, so none are handled) and are never inputs. The `EvidenceRecorder` masks
 any **registered sensitive value** wherever it appears in logs/artifacts, including **sensitive
 outputs** masked per the artifact's sensitivity metadata (`memberName → J****`, `balance → 4***`);
-observations are persisted only as summaries, not raw node dumps. Discovery evidence is a sanitized
-event log ("what & why"), never a raw transcript or chain-of-thought. **Prompt-injection stance:** UI
+observations are persisted only as summaries, not raw node dumps. In **discovery**, read output
+values are registered for redaction the moment they're read (before any later model `finish` text
+could echo them), the model's free-form finish prose is not persisted, and no success screenshot is
+taken (it would show member data) — an evidence-scanning test asserts no raw PII in any committed
+evidence file. Discovery evidence is a per-step decision log of the model's declared intent + expected
+effect ("what & why"), never a raw transcript or chain-of-thought. **Prompt-injection stance:** UI
 content is untrusted data, never policy — the model can't expand its allowlist from text the app
 renders (`model proposes / policy decides`). **Limits (honest):** committed screenshots use synthetic
 data and are not pixel-redacted (screenshot-level redaction is a documented cut); the allowlist is

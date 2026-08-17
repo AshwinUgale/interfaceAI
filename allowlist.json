@@ -13,6 +13,7 @@
     { "method": "GET",  "pattern": "/member/:id" },
     { "method": "GET",  "pattern": "/member/:id/summary" },
     { "method": "GET",  "pattern": "/account/new" },
+    { "method": "GET",  "pattern": "/reauth" },
     { "method": "POST", "pattern": "/account/review" },
     { "method": "POST", "pattern": "/account/create" }
   ],
@@ -31,6 +32,7 @@
     "GET /member/:id": "read",
     "GET /member/:id/summary": "read",
     "GET /account/new": "read",
+    "GET /reauth": "read",
     "POST /account/review": "reversible_write",
     "POST /account/create": "irreversible"
   }

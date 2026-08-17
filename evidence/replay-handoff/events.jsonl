@@ -2,7 +2,7 @@
 {"seq":1,"type":"navigate","url":"http://localhost:4000/","ok":true,"risk":"unknown"}
 {"seq":2,"type":"error_rule","stepId":"step-05","classify":"recoverable","code":"SESSION_EXPIRED"}
 {"seq":3,"type":"intervention_raised","capabilityId":"open-sub-account","goal":"Open a member sub-account and reach the review screen","stepId":"step-05","reason":"SESSION_EXPIRED","outcomeCode":"SESSION_EXPIRED","actionState":"completed","sideEffectUncertain":false,"screenshotRef":"screenshots/03-escalation.png","currentUrl":"http://localhost:4000/","control":"HANDOFF_PENDING"}
-{"seq":4,"type":"human_action","stepId":"step-05","description":"Re-authenticated the expired session and returned to the member record.","control":"HUMAN"}
-{"seq":5,"type":"navigate","url":"http://localhost:4000/?ws=/member/9****","ok":true,"risk":"unknown"}
+{"seq":4,"type":"human_action","stepId":"step-05","description":"Re-authenticated the expired session via /reauth and returned to the member record.","control":"HUMAN"}
+{"seq":5,"type":"navigate","url":"http://localhost:4000/?ws=/reauth?member=9****","ok":true,"risk":"unknown"}
 {"seq":6,"type":"intervention_resumed","stepId":"step-05","control":"RESUMING"}
 {"seq":7,"type":"replay_success","outputs":{"memberName":"D****","savingsBalance":"8***"}}

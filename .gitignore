@@ -18,4 +18,6 @@ test-results/
 
 # Temp/working evidence dirs (underscore-prefixed); real /evidence/* is committed
 evidence/_*/
+# Manual handoff output (requires a human operator; not part of committed evidence)
+evidence/replay-handoff-manual/
 dbg.ts

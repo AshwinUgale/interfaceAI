@@ -95,12 +95,16 @@ export function permissionDeniedPage(t: TenantConfig, id: string): string {
   );
 }
 
-export function sessionExpiredPage(t: TenantConfig): string {
+export function sessionExpiredPage(t: TenantConfig, memberId?: string): string {
+  // "Sign in" is a real re-auth action: it restores the session and returns to the member record.
   return page(
     'Session Expired',
     `<h2>Session Expired</h2>
 <p style="color:#a00;font-weight:bold">Your session has expired. Please sign in again to continue.</p>
-<form action="/search" method="get"><input type="submit" value="Sign in"></form>`
+<form action="/reauth" method="get">
+  <input type="hidden" name="member" value="${esc(memberId ?? '')}">
+  <input type="submit" value="Sign in">
+</form>`
   );
 }
 

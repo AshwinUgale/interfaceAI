@@ -58,6 +58,7 @@ async function main() {
       inputs,
       entryUrl: `${target}/`,
       successText: 'Review New Sub-Account',
+      sensitiveOutputs: OUTPUT_SPECS.filter((o) => o.sensitivity !== 'plain').map((o) => o.name),
     });
     console.log(`[discover] brain=${brain.name} status=${outcome.status} steps=${outcome.events.length}`);
     if (outcome.status !== 'success') {
