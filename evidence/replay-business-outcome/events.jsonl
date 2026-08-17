@@ -1,0 +1,3 @@
+{"seq":0,"type":"replay_start","capabilityId":"open-sub-account","capabilityVersion":"1.0.0","target":"http://localhost:4000","llmCalls":0}
+{"seq":1,"type":"navigate","url":"http://localhost:4000/","ok":true,"risk":"unknown"}
+{"seq":2,"type":"error_rule","stepId":"step-02","classify":"business","code":"MEMBER_NOT_FOUND"}

@@ -1,0 +1,37 @@
+{
+  "$comment": "Safety allowlist. Enforced by the PolicyEngine (per-action) and SessionGuard (context-level). Fail-closed: anything not listed is denied.",
+  "version": "1.0.0",
+  "origins": [
+    "http://localhost:4000",
+    "http://localhost:4001"
+  ],
+  "routes": [
+    { "method": "GET",  "pattern": "/" },
+    { "method": "GET",  "pattern": "/branding" },
+    { "method": "GET",  "pattern": "/search" },
+    { "method": "GET",  "pattern": "/member" },
+    { "method": "GET",  "pattern": "/member/:id" },
+    { "method": "GET",  "pattern": "/member/:id/summary" },
+    { "method": "GET",  "pattern": "/account/new" },
+    { "method": "POST", "pattern": "/account/review" },
+    { "method": "POST", "pattern": "/account/create" }
+  ],
+  "actionTypes": {
+    "navigate": "allow",
+    "click": "allow",
+    "type": "allow",
+    "select": "allow",
+    "read": "allow",
+    "download": "deny",
+    "upload": "deny"
+  },
+  "risk": {
+    "$comment": "Per-route business-effect classification. Unknown => human_required (fail-closed). Enforced independently of any risk hint carried in an artifact.",
+    "GET /member": "read",
+    "GET /member/:id": "read",
+    "GET /member/:id/summary": "read",
+    "GET /account/new": "read",
+    "POST /account/review": "reversible_write",
+    "POST /account/create": "irreversible"
+  }
+}

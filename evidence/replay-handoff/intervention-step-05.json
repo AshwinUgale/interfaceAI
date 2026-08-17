@@ -1,0 +1,11 @@
+{
+  "capabilityId": "open-sub-account",
+  "goal": "Open a member sub-account and reach the review screen",
+  "stepId": "step-05",
+  "reason": "SESSION_EXPIRED",
+  "outcomeCode": "SESSION_EXPIRED",
+  "actionState": "completed",
+  "sideEffectUncertain": false,
+  "screenshotRef": "screenshots/03-escalation.png",
+  "currentUrl": "http://localhost:4000/"
+}

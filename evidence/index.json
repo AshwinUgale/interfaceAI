@@ -1,0 +1,30 @@
+{
+  "artifact": "artifacts/open-sub-account.json",
+  "artifactSha256": "bab9852c1f6b298729617631d4e0b046942b29b3f374dd1a789c1b2f8378eb0e",
+  "runs": [
+    {
+      "dir": "evidence/discovery",
+      "proves": "genuine LLM-driven (claude-sonnet-4-5) live-UI loop + compiled artifact"
+    },
+    {
+      "dir": "evidence/replay-success",
+      "proves": "no-LLM deterministic replay + typed outputs"
+    },
+    {
+      "dir": "evidence/replay-business-outcome",
+      "proves": "business-outcome taxonomy (MEMBER_NOT_FOUND, not a crash)"
+    },
+    {
+      "dir": "evidence/replay-tenant-b",
+      "proves": "multi-tenant reuse via approved overlay"
+    },
+    {
+      "dir": "evidence/replay-handoff",
+      "proves": "same-session escalation + resume"
+    }
+  ],
+  "discoveryModel": {
+    "provider": "anthropic",
+    "id": "claude-sonnet-4-5"
+  }
+}

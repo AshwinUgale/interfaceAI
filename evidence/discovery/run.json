@@ -1,0 +1,12 @@
+{
+  "runId": "disc-001",
+  "status": "success",
+  "brain": "llm:claude-sonnet-4-5",
+  "model": {
+    "provider": "anthropic",
+    "id": "claude-sonnet-4-5"
+  },
+  "artifactPath": "artifacts\\open-sub-account.json",
+  "artifactSha256": "bab9852c1f6b298729617631d4e0b046942b29b3f374dd1a789c1b2f8378eb0e",
+  "stepCount": 9
+}

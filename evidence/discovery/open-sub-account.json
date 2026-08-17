@@ -1,0 +1,541 @@
+{
+  "schemaVersion": "1.0",
+  "capabilityId": "open-sub-account",
+  "capabilityVersion": "1.0.0",
+  "name": "Open a member sub-account and reach the review screen",
+  "description": "Look up a member, read their current s**** balance, open a new sub-account of a given type with an opening deposit, and reach the review screen. Does not create the account (irreversible; human-required).",
+  "recordedAgainst": {
+    "applicationFamily": "legacy-cu-servicing",
+    "surface": "legacyWeb",
+    "variant": "base",
+    "versionFingerprint": "member-search+detail+sub-account-review@v1"
+  },
+  "compatibleVariants": [
+    "base",
+    "tenant-b"
+  ],
+  "preconditions": [
+    {
+      "kind": "textMatches",
+      "text": "Member Search"
+    }
+  ],
+  "inputs": [
+    {
+      "name": "memberId",
+      "type": "string",
+      "required": true,
+      "classification": "pii",
+      "description": "Member identifier to look up"
+    },
+    {
+      "name": "accountType",
+      "type": "string",
+      "required": true,
+      "classification": "plain",
+      "description": "Sub-account type (s**** | money-market | certificate)"
+    },
+    {
+      "name": "openingDeposit",
+      "type": "number",
+      "required": true,
+      "classification": "plain",
+      "description": "Opening deposit amount in dollars"
+    }
+  ],
+  "outputs": [
+    {
+      "name": "memberName",
+      "type": "string",
+      "sensitivity": "pii",
+      "description": "Member full name",
+      "extract": {
+        "stepId": "step-03",
+        "kind": "text"
+      }
+    },
+    {
+      "name": "s****Balance",
+      "type": "money",
+      "sensitivity": "financial",
+      "description": "Current s**** balance",
+      "extract": {
+        "stepId": "step-04",
+        "kind": "text",
+        "parse": "currency"
+      }
+    }
+  ],
+  "steps": [
+    {
+      "id": "step-00",
+      "intent": "Open the target application",
+      "action": "navigate",
+      "url": "/",
+      "risk": {
+        "class": "read",
+        "approval": "automatic"
+      },
+      "retryPolicy": {
+        "maxAttempts": 3,
+        "retryOn": [
+          "CHECKPOINT_TIMEOUT",
+          "TRANSIENT_LOAD"
+        ],
+        "safeToRetry": true
+      }
+    },
+    {
+      "id": "step-01",
+      "intent": "Enter the member ID 1**** to search for the member",
+      "action": "type",
+      "target": {
+        "context": {
+          "frames": [
+            {
+              "name": "workspace"
+            }
+          ]
+        },
+        "candidates": [
+          {
+            "strategy": "anchorCell",
+            "anchorText": "Member ID",
+            "control": "input"
+          }
+        ],
+        "invariants": {
+          "cardinality": "exactlyOne",
+          "mustBeVisible": true,
+          "mustBeEnabled": true,
+          "expectedRole": "textbox"
+        },
+        "basis": [
+          "anchorCell"
+        ]
+      },
+      "value": {
+        "param": "memberId"
+      },
+      "risk": {
+        "class": "reversible_write",
+        "approval": "automatic"
+      },
+      "retryPolicy": {
+        "maxAttempts": 2,
+        "retryOn": [
+          "TRANSIENT_LOAD"
+        ],
+        "safeToRetry": true
+      }
+    },
+    {
+      "id": "step-02",
+      "intent": "Click Search to look up member 1****",
+      "action": "click",
+      "target": {
+        "context": {
+          "frames": [
+            {
+              "name": "workspace"
+            }
+          ]
+        },
+        "candidates": [
+          {
+            "strategy": "roleName",
+            "role": "button",
+            "name": "Search"
+          },
+          {
+            "strategy": "text",
+            "text": "Search"
+          }
+        ],
+        "invariants": {
+          "cardinality": "exactlyOne",
+          "mustBeVisible": true,
+          "mustBeEnabled": true,
+          "expectedRole": "button",
+          "expectedName": "Search"
+        },
+        "basis": [
+          "roleName",
+          "text"
+        ]
+      },
+      "risk": {
+        "class": "read",
+        "approval": "automatic"
+      },
+      "checkpoint": {
+        "kind": "textMatches",
+        "text": "Member Details"
+      },
+      "retryPolicy": {
+        "maxAttempts": 2,
+        "retryOn": [
+          "TRANSIENT_LOAD"
+        ],
+        "safeToRetry": true
+      },
+      "onError": [
+        {
+          "match": {
+            "text": "No record found"
+          },
+          "classify": "business",
+          "outcomeCode": "MEMBER_NOT_FOUND",
+          "action": "return"
+        },
+        {
+          "match": {
+            "text": "do not have permission"
+          },
+          "classify": "business",
+          "outcomeCode": "PERMISSION_DENIED",
+          "action": "return"
+        }
+      ]
+    },
+    {
+      "id": "step-03",
+      "intent": "Read the member's name and bind to output 'memberName'",
+      "action": "read",
+      "target": {
+        "context": {
+          "frames": [
+            {
+              "name": "workspace"
+            }
+          ]
+        },
+        "candidates": [
+          {
+            "strategy": "tableCell",
+            "rowContainsText": "Member Name",
+            "column": 2
+          }
+        ],
+        "invariants": {
+          "cardinality": "exactlyOne",
+          "mustBeVisible": true,
+          "mustBeEnabled": false,
+          "expectedRole": "cell",
+          "expectedName": "Member Name"
+        },
+        "basis": [
+          "tableCell"
+        ]
+      },
+      "bindOutput": "memberName",
+      "risk": {
+        "class": "read",
+        "approval": "automatic"
+      },
+      "retryPolicy": {
+        "maxAttempts": 3,
+        "retryOn": [
+          "CHECKPOINT_TIMEOUT",
+          "TRANSIENT_LOAD"
+        ],
+        "safeToRetry": true
+      }
+    },
+    {
+      "id": "step-04",
+      "intent": "Read the current s**** balance and bind to output 's****Balance'",
+      "action": "read",
+      "target": {
+        "context": {
+          "frames": [
+            {
+              "name": "workspace"
+            },
+            {
+              "name": "accountSummary"
+            }
+          ]
+        },
+        "candidates": [
+          {
+            "strategy": "tableCell",
+            "rowContainsText": "Savings",
+            "column": 2
+          }
+        ],
+        "invariants": {
+          "cardinality": "exactlyOne",
+          "mustBeVisible": true,
+          "mustBeEnabled": false,
+          "expectedRole": "cell",
+          "expectedName": "Savings"
+        },
+        "basis": [
+          "tableCell"
+        ]
+      },
+      "bindOutput": "s****Balance",
+      "risk": {
+        "class": "read",
+        "approval": "automatic"
+      },
+      "retryPolicy": {
+        "maxAttempts": 3,
+        "retryOn": [
+          "CHECKPOINT_TIMEOUT",
+          "TRANSIENT_LOAD"
+        ],
+        "safeToRetry": true
+      }
+    },
+    {
+      "id": "step-05",
+      "intent": "Click 'Open New Account' to start opening a new s**** sub-account",
+      "action": "click",
+      "target": {
+        "context": {
+          "frames": [
+            {
+              "name": "workspace"
+            }
+          ]
+        },
+        "candidates": [
+          {
+            "strategy": "roleName",
+            "role": "link",
+            "name": "Open New Account"
+          },
+          {
+            "strategy": "text",
+            "text": "Open New Account"
+          }
+        ],
+        "invariants": {
+          "cardinality": "exactlyOne",
+          "mustBeVisible": true,
+          "mustBeEnabled": true,
+          "expectedRole": "link",
+          "expectedName": "Open New Account"
+        },
+        "basis": [
+          "roleName",
+          "text"
+        ]
+      },
+      "risk": {
+        "class": "read",
+        "approval": "automatic"
+      },
+      "checkpoint": {
+        "kind": "textMatches",
+        "text": "Open Sub-Account"
+      },
+      "retryPolicy": {
+        "maxAttempts": 2,
+        "retryOn": [
+          "TRANSIENT_LOAD"
+        ],
+        "safeToRetry": true
+      },
+      "onError": [
+        {
+          "match": {
+            "text": "session has expired"
+          },
+          "classify": "recoverable",
+          "outcomeCode": "SESSION_EXPIRED",
+          "action": "escalate"
+        }
+      ]
+    },
+    {
+      "id": "step-06",
+      "intent": "Select 'Savings' as the account type for the new sub-account",
+      "action": "select",
+      "target": {
+        "context": {
+          "frames": [
+            {
+              "name": "workspace"
+            }
+          ]
+        },
+        "candidates": [
+          {
+            "strategy": "anchorCell",
+            "anchorText": "Account Type",
+            "control": "select"
+          }
+        ],
+        "invariants": {
+          "cardinality": "exactlyOne",
+          "mustBeVisible": true,
+          "mustBeEnabled": true,
+          "expectedRole": "combobox"
+        },
+        "basis": [
+          "anchorCell"
+        ]
+      },
+      "value": {
+        "literal": "Savings"
+      },
+      "risk": {
+        "class": "reversible_write",
+        "approval": "automatic"
+      },
+      "retryPolicy": {
+        "maxAttempts": 2,
+        "retryOn": [
+          "TRANSIENT_LOAD"
+        ],
+        "safeToRetry": true
+      }
+    },
+    {
+      "id": "step-07",
+      "intent": "Enter the opening deposit amount of 5** dollars",
+      "action": "type",
+      "target": {
+        "context": {
+          "frames": [
+            {
+              "name": "workspace"
+            }
+          ]
+        },
+        "candidates": [
+          {
+            "strategy": "anchorCell",
+            "anchorText": "Opening Deposit",
+            "control": "input"
+          }
+        ],
+        "invariants": {
+          "cardinality": "exactlyOne",
+          "mustBeVisible": true,
+          "mustBeEnabled": true,
+          "expectedRole": "textbox"
+        },
+        "basis": [
+          "anchorCell"
+        ]
+      },
+      "value": {
+        "param": "openingDeposit"
+      },
+      "risk": {
+        "class": "reversible_write",
+        "approval": "automatic"
+      },
+      "retryPolicy": {
+        "maxAttempts": 2,
+        "retryOn": [
+          "TRANSIENT_LOAD"
+        ],
+        "safeToRetry": true
+      }
+    },
+    {
+      "id": "step-08",
+      "intent": "Click 'Continue to Review' to reach the review screen",
+      "action": "click",
+      "target": {
+        "context": {
+          "frames": [
+            {
+              "name": "workspace"
+            }
+          ]
+        },
+        "candidates": [
+          {
+            "strategy": "roleName",
+            "role": "button",
+            "name": "Continue to Review"
+          },
+          {
+            "strategy": "text",
+            "text": "Continue to Review"
+          }
+        ],
+        "invariants": {
+          "cardinality": "exactlyOne",
+          "mustBeVisible": true,
+          "mustBeEnabled": true,
+          "expectedRole": "button",
+          "expectedName": "Continue to Review"
+        },
+        "basis": [
+          "roleName",
+          "text"
+        ]
+      },
+      "risk": {
+        "class": "reversible_write",
+        "approval": "automatic"
+      },
+      "checkpoint": {
+        "all": [
+          {
+            "kind": "textMatches",
+            "text": "Review New Sub-Account"
+          },
+          {
+            "kind": "textMatches",
+            "text": "Review Reference"
+          }
+        ]
+      },
+      "retryPolicy": {
+        "maxAttempts": 2,
+        "retryOn": [
+          "TRANSIENT_LOAD"
+        ],
+        "safeToRetry": true
+      },
+      "onError": [
+        {
+          "match": {
+            "text": "must be a positive dollar amount"
+          },
+          "classify": "business",
+          "outcomeCode": "VALIDATION_ERROR",
+          "action": "return"
+        },
+        {
+          "match": {
+            "text": "not eligible"
+          },
+          "classify": "business",
+          "outcomeCode": "NOT_ELIGIBLE",
+          "action": "return"
+        }
+      ]
+    }
+  ],
+  "successCondition": {
+    "all": [
+      {
+        "kind": "textMatches",
+        "text": "Review New Sub-Account"
+      },
+      {
+        "not": {
+          "kind": "textMatches",
+          "text": "No record found"
+        }
+      }
+    ]
+  },
+  "provenance": {
+    "recordedFromRunId": "disc-001",
+    "model": {
+      "provider": "anthropic",
+      "id": "claude-sonnet-4-5"
+    },
+    "approvalState": "draft"
+  }
+}

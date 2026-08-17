@@ -1,0 +1,22 @@
+# Planning / design docs — kept locally, not committed
+/REPORT.md
+/docs/DESIGN.md
+
+# Node
+node_modules/
+dist/
+*.log
+
+# Env / secrets — never commit
+.env
+.env.*
+!.env.example
+
+# Playwright / test output
+playwright-report/
+test-results/
+/trace/
+
+# Temp/working evidence dirs (underscore-prefixed); real /evidence/* is committed
+evidence/_*/
+dbg.ts

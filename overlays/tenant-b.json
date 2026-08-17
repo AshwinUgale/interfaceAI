@@ -1,0 +1,15 @@
+{
+  "overlayId": "tenant-b@1",
+  "version": "1.0.0",
+  "tenant": "tenant-b",
+  "baseUrl": "http://localhost:4001",
+  "locatorOverrides": [
+    {
+      "matchExpectedName": "Open New Account",
+      "addCandidates": [
+        { "strategy": "roleName", "role": "link", "name": "Add Share" },
+        { "strategy": "text", "text": "Add Share" }
+      ]
+    }
+  ]
+}

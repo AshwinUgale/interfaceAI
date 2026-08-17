@@ -1,0 +1,133 @@
+{
+  "label": "replay-handoff",
+  "targetBase": "http://localhost:4000",
+  "result": {
+    "status": "success",
+    "outputs": {
+      "memberName": "Dana P. Fox",
+      "savingsBalance": 88.2
+    },
+    "steps": [
+      {
+        "stepId": "step-00",
+        "action": "navigate",
+        "ok": true,
+        "note": "http://localhost:4000/"
+      },
+      {
+        "stepId": "step-01",
+        "action": "type",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      },
+      {
+        "stepId": "step-02",
+        "action": "click",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      },
+      {
+        "stepId": "step-03",
+        "action": "read",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      },
+      {
+        "stepId": "step-04",
+        "action": "read",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      },
+      {
+        "stepId": "step-05",
+        "action": "click",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      },
+      {
+        "stepId": "step-06",
+        "action": "select",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      },
+      {
+        "stepId": "step-07",
+        "action": "type",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      },
+      {
+        "stepId": "step-08",
+        "action": "click",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      }
+    ]
+  },
+  "control": [
+    {
+      "from": "AUTOMATION",
+      "to": "HANDOFF_PENDING"
+    },
+    {
+      "from": "HANDOFF_PENDING",
+      "to": "HUMAN"
+    },
+    {
+      "from": "HUMAN",
+      "to": "RESUMING"
+    },
+    {
+      "from": "RESUMING",
+      "to": "AUTOMATION"
+    }
+  ]
+}

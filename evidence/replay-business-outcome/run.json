@@ -1,0 +1,41 @@
+{
+  "label": "replay-business-outcome",
+  "targetBase": "http://localhost:4000",
+  "result": {
+    "status": "business_outcome",
+    "code": "MEMBER_NOT_FOUND",
+    "steps": [
+      {
+        "stepId": "step-00",
+        "action": "navigate",
+        "ok": true,
+        "note": "http://localhost:4000/"
+      },
+      {
+        "stepId": "step-01",
+        "action": "type",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      },
+      {
+        "stepId": "step-02",
+        "action": "click",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1,
+        "note": "MEMBER_NOT_FOUND"
+      }
+    ]
+  }
+}

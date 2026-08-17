@@ -1,0 +1,115 @@
+{
+  "label": "replay-tenant-b",
+  "targetBase": "http://localhost:4001",
+  "result": {
+    "status": "success",
+    "outputs": {
+      "memberName": "Jane A. Rivera",
+      "savingsBalance": 4250
+    },
+    "steps": [
+      {
+        "stepId": "step-00",
+        "action": "navigate",
+        "ok": true,
+        "note": "http://localhost:4001/"
+      },
+      {
+        "stepId": "step-01",
+        "action": "type",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      },
+      {
+        "stepId": "step-02",
+        "action": "click",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      },
+      {
+        "stepId": "step-03",
+        "action": "read",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      },
+      {
+        "stepId": "step-04",
+        "action": "read",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      },
+      {
+        "stepId": "step-05",
+        "action": "click",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 2,
+          "fallbackUsed": true
+        },
+        "attempts": 1
+      },
+      {
+        "stepId": "step-06",
+        "action": "select",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      },
+      {
+        "stepId": "step-07",
+        "action": "type",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      },
+      {
+        "stepId": "step-08",
+        "action": "click",
+        "ok": true,
+        "resolution": {
+          "status": "resolved",
+          "matchCount": 1,
+          "candidateIndex": 0,
+          "fallbackUsed": false
+        },
+        "attempts": 1
+      }
+    ]
+  }
+}
