@@ -24,7 +24,7 @@ async function main() {
   const cap = zCapability.parse(JSON.parse(readFileSync('artifacts/open-sub-account.json', 'utf8')));
   const app = spawnTargetApp('base', 4000);
   const evidence = new EvidenceRecorder('evidence/replay-handoff-manual');
-  const { surface, stop } = await buildSurface('allowlist.json', evidence, { headless: false });
+  const { surface, guard, stop } = await buildSurface('allowlist.json', evidence, { headless: false });
   const rl = createInterface({ input: process.stdin, output: process.stdout });
 
   let startedUrl = '';
@@ -36,6 +36,7 @@ async function main() {
       console.log('Then press ENTER here to hand control back to automation.\n');
     },
   });
+  guard.setOwnership(() => escalation.token.owner); // permit human-authorized traffic during takeover
   rl.on('line', () => {
     escalation.recordHumanAction('manual', `operator resumed (from ${startedUrl} -> ${surface.currentUrl()})`);
     escalation.resume();

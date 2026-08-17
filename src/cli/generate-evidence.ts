@@ -91,7 +91,7 @@ async function replayScenario(
   extra?: { escalationMemberId?: string }
 ): Promise<void> {
   const evidence = new EvidenceRecorder(dir);
-  const { surface, stop } = await buildSurface(ALLOW, evidence, { headless: true });
+  const { surface, guard, stop } = await buildSurface(ALLOW, evidence, { headless: true });
   try {
     let escalation: EscalationManager | undefined;
     if (extra?.escalationMemberId) {
@@ -104,6 +104,8 @@ async function replayScenario(
           resume();
         },
       });
+      // Transport guard now follows control ownership: human-owned irreversible traffic is permitted.
+      guard.setOwnership(() => escalation!.token.owner);
     }
     const result = await replay(capability, inputs, surface, evidence, { targetBase, escalation });
     evidence.finalize('run.json', { label, targetBase, result, control: escalation?.token.transitions });

@@ -340,6 +340,26 @@ export class WebSurfaceDriver implements SurfaceDriver {
       if (usable.length > 1) {
         return { resolution: { status: 'ambiguous', matchCount: usable.length, candidateIndex: idx, fallbackUsed: idx > 0 } };
       }
+      // Enforce the recorded control type: a fallback (e.g. a text match) that resolves the wrong
+      // ROLE (a heading instead of the expected link) is rejected — try the next candidate.
+      const want = descriptor.invariants.expectedRole;
+      if (want) {
+        const got = await usable[0]!
+          .evaluate((el) => {
+            const tag = el.tagName.toLowerCase();
+            const type = (el.getAttribute('type') || '').toLowerCase();
+            if (tag === 'a') return 'link';
+            if (tag === 'button') return 'button';
+            if (tag === 'select') return 'combobox';
+            if (tag === 'textarea') return 'textbox';
+            if (tag === 'input') return type === 'submit' || type === 'button' ? 'button' : 'textbox';
+            if (tag === 'h1' || tag === 'h2' || tag === 'h3') return 'heading';
+            if (tag === 'td' || tag === 'th') return 'cell';
+            return 'other';
+          })
+          .catch(() => 'other');
+        if (got !== want) continue;
+      }
       return {
         resolution: { status: 'resolved', matchCount: 1, candidateIndex: idx, fallbackUsed: idx > 0 },
         locator: usable[0],

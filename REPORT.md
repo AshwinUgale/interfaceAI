@@ -127,9 +127,10 @@ duplicate transaction.
 non-terminal. Generic execution errors live in the engine; app-specific outcomes
 (`MEMBER_NOT_FOUND`, `SESSION_EXPIRED`) live in reviewable `ErrorRule`s, so the engine stays generic.
 
-## 4. Heterogeneity & multi-tenant  *(design; only the Tenant B overlay is built)*
+## 4. Heterogeneity & multi-tenant
 
-The `SurfaceDriver` is the seam between perceive/act and the recorded flow; the schema is
+This section is design (only the Tenant B overlay is built). The `SurfaceDriver` is the seam between
+perceive/act and the recorded flow; the schema is
 surface-agnostic (semantic descriptors, frame context, predicates — no CSS). A desktop driver
 (UIAutomation/AX) would produce the same sparse node shape + screenshot — *semantic where available,
 visual geometry where necessary*. Precise claim: the **capability envelope, replay contract,
@@ -192,9 +193,12 @@ tampered artifact that mislabels `/account/create` as `automatic` is still block
 links pass (tested). **`SessionGuard`**
 enforces containment at the browser-context level in two tiers: the **origin allowlist on every
 http(s) request** (blocking off-allowlist `fetch`/XHR/resource loads) and the **route allowlist (by
-method) on navigations and mutating requests** (POST/PUT/PATCH/DELETE); it also blocks
-downloads/popups and **stays active during human takeover**, because
-human clicks don't pass through `act()` — closing the "single choke point" gap honestly. Risk is
+method) on navigations and mutating requests** (POST/PUT/PATCH/DELETE). While automation owns the
+session it additionally **blocks an irreversible/unknown mutating request at the transport layer** —
+closing the gap where a JS-only control (no form/link metadata) POSTs to an irreversible route via
+`fetch`; a human owner may perform authorized irreversible traffic during takeover (the guard
+follows the control token). It also blocks downloads/popups and **stays active during human
+takeover**, because human clicks don't pass through `act()` — closing the "single choke point" gap. Risk is
 per-step, deterministic, **fail-closed** (unknown ⇒ `human_required`); a missing frame context is a
 fail-closed `TARGET_CONTEXT_NOT_FOUND`, not a silent fallback. **PII ≠
 secrets:** invocation params are `plain|pii`, carried as `{param}` and supplied per-invocation, never
@@ -210,10 +214,11 @@ evidence file. Discovery evidence is a per-step decision log of the model's decl
 effect ("what & why"), never a raw transcript or chain-of-thought. **Prompt-injection stance:** UI
 content is untrusted data, never policy — the model can't expand its allowlist from text the app
 renders (`model proposes / policy decides`). **Limits (honest):** committed screenshots use synthetic
-data and are not pixel-redacted (screenshot-level redaction is a documented cut); the allowlist is
-only as good as its config; `SessionGuard` guards the obvious paths, not a full sandbox;
-`approvalState` is co-located in the JSON here but would be external, digest-bound metadata in
-production.
+data and are not pixel-redacted (screenshot-level redaction is a documented cut); route risk is keyed
+by **path, not query string** (a `/action?op=close` variant would need query-aware matching); the
+value redactor is exact-match, not case/format-insensitive (production would move to field-aware/DLP
+redaction); `approvalState` is co-located in the JSON here but would be external, digest-bound
+metadata in production.
 
 ## 7. Cuts
 

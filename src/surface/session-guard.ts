@@ -17,7 +17,14 @@ export interface GuardViolation {
 
 export class SessionGuard {
   readonly violations: GuardViolation[] = [];
+  /** Who currently owns the session — used to gate irreversible mutating traffic. Defaults to agent. */
+  private ownership: () => 'agent' | 'human' | 'none' = () => 'agent';
   constructor(private readonly policy: PolicyEngine) {}
+
+  /** Wire the control token so the guard permits human-authorized irreversible traffic during takeover. */
+  setOwnership(fn: () => 'agent' | 'human' | 'none'): void {
+    this.ownership = fn;
+  }
 
   async attach(context: BrowserContext): Promise<void> {
     // Two levels of containment, holding during human takeover too:
@@ -41,6 +48,13 @@ export class SessionGuard {
           /* keep default */
         }
         if (!this.policy.routeAllowed(req.method(), path)) return block();
+        // Business-risk containment on mutating requests while AUTOMATION owns the session — closes
+        // the gap where a JS-only control (no form/link) POSTs to an irreversible route via fetch.
+        // A human owner may perform authorized irreversible traffic during takeover.
+        if (MUTATING.has(req.method()) && this.ownership() === 'agent') {
+          const risk = this.policy.riskFor(req.method(), path) ?? 'unknown';
+          if (risk === 'irreversible' || risk === 'unknown') return block();
+        }
       }
       return route.continue();
     });
