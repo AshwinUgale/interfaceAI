@@ -148,12 +148,16 @@ fallback rather than as drift.
 
 ## 5. Escalation & handoff
 
-**Detect "stuck" mechanically:** a discovery stop (max-steps / **wall-clock timeout** / **dead-end**
-= observation fingerprint repeated N times / a policy-blocked action), a replay recoverable rule
-with `action:escalate`, or a `human_required` risk gate. The **same handoff mechanism is
-system-wide**: when an operator is attached, a stuck *discovery* raises an intervention (screenshot +
-context), hands off, and resumes the observe loop — not only replay. **Same session:** agent and
-human share one persistent
+**Detect "stuck" mechanically:** discovery stops on **wall-clock timeout** (enforced as a hard
+deadline around the model call), **dead-end** (observation fingerprint repeated N times), a
+**policy-blocked action**, or **max-steps** (a hard cap); replay stops on a recoverable rule with
+`action:escalate` or a `human_required` risk gate. The **same handoff mechanism is system-wide**:
+when an operator is attached, timeout / dead-end / policy-block **escalate** — a stuck *discovery*
+raises an intervention (screenshot + context), hands off, and resumes the observe loop, not only
+replay (max-steps is a hard cap and returns without escalating). Discovery-time human intervention
+is scoped to **remediation** (restore a session, clear a permission/interstitial); it does **not**
+capture arbitrary manual workflow steps into the artifact — doing so as draft steps is future work.
+**Same session:** agent and human share one persistent
 `BrowserContext` (cookies/storage preserved by reuse). Control is a state machine with an explicit
 lock — `AUTOMATION → HANDOFF_PENDING → HUMAN → RESUMING → (AUTOMATION|TERMINAL)` — with illegal
 transitions rejected (tested), and automation asserts ownership before acting. On escalation the
@@ -165,11 +169,14 @@ human-operable path exists: **`npm run handoff`** launches a *headed* browser, p
 and hands the same live session to a real operator who **re-authenticates via the UI** (clicking
 **Sign in** → `/reauth`, a real allowlisted route that restores the session — not a private harness
 call) and presses ENTER to hand back. The automated `replay-handoff` evidence uses a *simulated*
-operator that performs the same `/reauth` UI step and calls the same `resume()`. Replay resume is
+operator that simulates the human's remediation by navigating the same live session through the
+allowlisted `/reauth` route and calling the same `resume()` (the genuine person-in-the-loop path is
+`npm run handoff`). Replay resume is
 **deterministic**: the engine re-attempts the current step (re-resolve + re-check), no model decides
-where to resume. **Human actions never silently become production automation** — in
-replay they never mutate the artifact; discovery-captured human steps would land in a `draft`
-capability pending review. Console UI and granular in-page action capture are documented cuts; the
+where to resume. **Human actions never silently become production automation** — in replay they
+never mutate the artifact, and discovery-time intervention is remediation only (it restores state; it
+does not add steps to the capability). Console UI and granular in-page action capture are documented
+cuts; the
 control-transfer semantics are real and exercised by the `replay-handoff` evidence (session expiry →
 intervention → resume → completion).
 

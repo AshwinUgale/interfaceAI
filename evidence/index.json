@@ -1,6 +1,6 @@
 {
   "artifact": "artifacts/open-sub-account.json",
-  "artifactSha256": "adfb8915491ba045d3fb51e42e9e18c0d64e81ba1df1047af878372023e09441",
+  "artifactSha256": "539c4e7ee2460f424947e7d5e8baf601f068bcec76b59ae54a89dfefba406cdf",
   "discoveryModel": {
     "provider": "anthropic",
     "id": "claude-sonnet-4-5"

@@ -22,6 +22,16 @@ describe('artifact schema', () => {
     // Includes the actual pii INPUT value (10001) — the leak the previous test missed.
     for (const pii of ['10001', 'Jane', 'Rivera', 'Dana', '4,250', '4250']) expect(blob.includes(pii)).toBe(false);
   });
+
+  it('superRefine rejects an output bound to the wrong read step', () => {
+    const raw = JSON.parse(readFileSync('artifacts/open-sub-account.json', 'utf8'));
+    const reads = raw.steps.filter((s: { action: string }) => s.action === 'read');
+    const bad = structuredClone(raw);
+    // Point the first output's extract at a read step that binds a DIFFERENT output.
+    const other = reads.find((s: { bindOutput: string }) => s.bindOutput !== bad.outputs[0].name);
+    bad.outputs[0].extract.stepId = other.id;
+    expect(() => zCapability.parse(bad)).toThrow();
+  });
 });
 
 describe('evidence redaction', () => {

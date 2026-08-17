@@ -100,8 +100,18 @@ export async function runDiscovery(
 
     let decision: Decision;
     try {
-      decision = await brain.next({ goal: config.goal, inputs: config.inputs, observation, url: observation.url, stepIndex: step });
+      const remaining = config.timeoutMs ? config.timeoutMs - (Date.now() - started) : Infinity;
+      decision = await withDeadline(brain.next({ goal: config.goal, inputs: config.inputs, observation, url: observation.url, stepIndex: step }), remaining);
     } catch (e) {
+      if ((e as Error).message === '__DEADLINE__') {
+        // Hard wall-clock deadline: even a hung model call is interrupted here.
+        evidence.log('timeout', { step, timeoutMs: config.timeoutMs, during: 'brain.next' });
+        if (await escalateStuck(step, 'timeout', 'model call exceeded deadline')) {
+          started = Date.now();
+          continue;
+        }
+        return { status: 'timeout', reason: 'model call exceeded deadline', events };
+      }
       evidence.log('brain_error', { step, error: (e as Error).message });
       return { status: 'failed', reason: (e as Error).message, events };
     }
@@ -151,6 +161,15 @@ export async function runDiscovery(
     });
   }
   return { status: 'max_steps', events };
+}
+
+/** Race a promise against a wall-clock deadline (rejects with __DEADLINE__). */
+function withDeadline<T>(p: Promise<T>, ms: number): Promise<T> {
+  if (!isFinite(ms)) return p;
+  return Promise.race([
+    p,
+    new Promise<T>((_, reject) => setTimeout(() => reject(new Error('__DEADLINE__')), Math.max(0, ms))),
+  ]);
 }
 
 function computeRouteRisk(

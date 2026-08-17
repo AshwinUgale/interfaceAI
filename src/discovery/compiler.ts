@@ -102,6 +102,19 @@ export function compile(events: ExecutionEvent[], opts: CompileOptions): Capabil
     for (const { name, val } of piiValues) t = t.split(val).join(`{${name}}`);
     return t;
   };
+  // For CLICK intents (free-form prose that can name the account type), also parameterize plain
+  // input values case-insensitively — so "a new savings sub-account" -> "a new {accountType}
+  // sub-account". NOT applied to read intents, where "savings balance" refers to the existing
+  // account, not the accountType param.
+  const escapeRe = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const scrubClick = (text?: string): string | undefined => {
+    if (!text) return text;
+    let t = scrub(text)!;
+    for (const [name, val] of Object.entries(opts.inputs)) {
+      if (val && val.length >= 2) t = t.replace(new RegExp(escapeRe(val), 'gi'), `{${name}}`);
+    }
+    return t;
+  };
 
   events.forEach((ev, i) => {
     const id = `step-${String(i).padStart(2, '0')}`;
@@ -163,6 +176,7 @@ export function compile(events: ExecutionEvent[], opts: CompileOptions): Capabil
       const retryPolicy = ev.routeRisk === 'read' ? CLICK_GET_RETRY : NO_REDISPATCH_RETRY;
       steps.push({
         ...common,
+        intent: scrubClick(ev.intent)!,
         action: 'click',
         target: descriptorFrom(ev.resolved, true, ev.resolved.name || undefined),
         risk: riskFor(ev.routeRisk),

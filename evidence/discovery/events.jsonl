@@ -2,27 +2,27 @@
 {"seq":1,"type":"navigate","url":"http://localhost:4000/","ok":true,"risk":"unknown"}
 {"seq":2,"type":"observe","generation":1,"url":"http://localhost:4000/","nodeCount":6}
 {"seq":3,"type":"act","action":"type","ref":"obs_1:e4","value":"1****","ok":true}
-{"seq":4,"type":"decision","step":0,"action":"type","intent":"Enter the member ID 1**** into the search field","expectedEffect":"The textbox will contain \"1****\"","ok":true}
+{"seq":4,"type":"decision","step":0,"action":"type","intent":"Enter the member ID 1**** to search for the member","expectedEffect":"The textbox will contain the value \"1****\"","ok":true}
 {"seq":5,"type":"observe","generation":2,"url":"http://localhost:4000/","nodeCount":6}
 {"seq":6,"type":"act","action":"click","ref":"obs_2:e5","ok":true}
-{"seq":7,"type":"decision","step":1,"action":"click","intent":"Click Search button to find member 1****","expectedEffect":"The member details for member 1**** will be displayed","ok":true}
+{"seq":7,"type":"decision","step":1,"action":"click","intent":"Click the Search button to find member 1****","expectedEffect":"The member details for member 1**** will be displayed","ok":true}
 {"seq":8,"type":"observe","generation":3,"url":"http://localhost:4000/","nodeCount":13}
 {"seq":9,"type":"act","action":"read","ref":"obs_3:e6","ok":true}
-{"seq":10,"type":"decision","step":2,"action":"read","intent":"Read the member's name","expectedEffect":"The member name \"J****\" will be bound to output 'memberName'","ok":true}
+{"seq":10,"type":"decision","step":2,"action":"read","intent":"Read the member's name to bind to output 'memberName'","expectedEffect":"The member name \"J****\" will be stored in the memberName output","ok":true}
 {"seq":11,"type":"observe","generation":4,"url":"http://localhost:4000/","nodeCount":13}
 {"seq":12,"type":"act","action":"read","ref":"obs_4:e12","ok":true}
-{"seq":13,"type":"decision","step":3,"action":"read","intent":"Read the current savings balance","expectedEffect":"The savings balance \"$****\" will be bound to output 'savingsBalance'","ok":true}
+{"seq":13,"type":"decision","step":3,"action":"read","intent":"Read the current savings balance to bind to output 'savingsBalance'","expectedEffect":"The savings balance \"$****\" will be stored in the savingsBalance output","ok":true}
 {"seq":14,"type":"observe","generation":5,"url":"http://localhost:4000/","nodeCount":13}
 {"seq":15,"type":"act","action":"click","ref":"obs_5:e8","ok":true}
-{"seq":16,"type":"decision","step":4,"action":"click","intent":"Click 'Open New Account' to begin opening a new savings sub-account","expectedEffect":"A form for opening a new account will be displayed","ok":true}
+{"seq":16,"type":"decision","step":4,"action":"click","intent":"Click the Open New Account link to begin opening a new savings sub-account","expectedEffect":"A form will appear to enter details for opening a new account","ok":true}
 {"seq":17,"type":"observe","generation":6,"url":"http://localhost:4000/","nodeCount":9}
 {"seq":18,"type":"act","action":"select","ref":"obs_6:e5","value":"savings","ok":true}
-{"seq":19,"type":"decision","step":5,"action":"select","intent":"Select 'Savings' as the account type","expectedEffect":"The account type dropdown will show 'Savings' as selected","ok":true}
+{"seq":19,"type":"decision","step":5,"action":"select","intent":"Select Savings as the account type for the new sub-account","expectedEffect":"The dropdown will show Savings as selected","ok":true}
 {"seq":20,"type":"observe","generation":7,"url":"http://localhost:4000/","nodeCount":9}
 {"seq":21,"type":"act","action":"type","ref":"obs_7:e7","value":"500","ok":true}
-{"seq":22,"type":"decision","step":6,"action":"type","intent":"Enter 500 as the opening deposit amount","expectedEffect":"The opening deposit textbox will contain \"500\"","ok":true}
+{"seq":22,"type":"decision","step":6,"action":"type","intent":"Enter the opening deposit amount of 500 dollars","expectedEffect":"The opening deposit textbox will contain \"500\"","ok":true}
 {"seq":23,"type":"observe","generation":8,"url":"http://localhost:4000/","nodeCount":9}
 {"seq":24,"type":"act","action":"click","ref":"obs_8:e8","ok":true}
-{"seq":25,"type":"decision","step":7,"action":"click","intent":"Click 'Continue to Review' to proceed to the review screen","expectedEffect":"The review screen will be displayed with the new account details","ok":true}
+{"seq":25,"type":"decision","step":7,"action":"click","intent":"Click Continue to Review to reach the review screen for the new savings sub-account","expectedEffect":"The review screen will be displayed showing the details of the new savings account with 500 dollar opening deposit","ok":true}
 {"seq":26,"type":"observe","generation":9,"url":"http://localhost:4000/","nodeCount":12}
 {"seq":27,"type":"discovery_finish","step":8,"successConditionVerified":true}

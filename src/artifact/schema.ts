@@ -186,10 +186,16 @@ export const zCapability = z.object({
     approvalState: z.enum(['draft', 'approved']),
   }),
 }).superRefine((cap, ctx) => {
-  // Cross-field integrity: params/outputs/extract must reference declared, existing things.
+  // Cross-field integrity: params/outputs/extract must reference declared, existing things, and
+  // ids/names must be unique.
+  const dupes = (arr: string[]) => [...new Set(arr.filter((v, i) => arr.indexOf(v) !== i))];
+  for (const d of dupes(cap.steps.map((s) => s.id))) ctx.addIssue({ code: 'custom', message: `duplicate step id '${d}'` });
+  for (const d of dupes(cap.inputs.map((i) => i.name))) ctx.addIssue({ code: 'custom', message: `duplicate input name '${d}'` });
+  for (const d of dupes(cap.outputs.map((o) => o.name))) ctx.addIssue({ code: 'custom', message: `duplicate output name '${d}'` });
+
   const inputNames = new Set(cap.inputs.map((i) => i.name));
   const outputNames = new Set(cap.outputs.map((o) => o.name));
-  const readStepIds = new Set(cap.steps.filter((s) => s.action === 'read').map((s) => s.id));
+  const readBindings = new Map(cap.steps.filter((s) => s.action === 'read').map((s) => [s.id, s.bindOutput]));
   for (const s of cap.steps) {
     if ((s.action === 'type' || s.action === 'select') && 'param' in s.value && !inputNames.has(s.value.param)) {
       ctx.addIssue({ code: 'custom', message: `step ${s.id} references undeclared input '${s.value.param}'` });
@@ -199,8 +205,9 @@ export const zCapability = z.object({
     }
   }
   for (const o of cap.outputs) {
-    if (!readStepIds.has(o.extract.stepId)) {
-      ctx.addIssue({ code: 'custom', message: `output '${o.name}' extract.stepId '${o.extract.stepId}' is not a read step` });
+    // The extract step must be a read step that actually binds THIS output (not just any read step).
+    if (readBindings.get(o.extract.stepId) !== o.name) {
+      ctx.addIssue({ code: 'custom', message: `output '${o.name}' extract.stepId '${o.extract.stepId}' must be a read step binding '${o.name}'` });
     }
   }
 });

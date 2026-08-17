@@ -131,7 +131,7 @@
     },
     {
       "id": "step-02",
-      "intent": "Click Search button to find member {memberId}",
+      "intent": "Click the Search button to find member {memberId}",
       "action": "click",
       "target": {
         "context": {
@@ -201,7 +201,7 @@
     },
     {
       "id": "step-03",
-      "intent": "Read the member's name",
+      "intent": "Read the member's name to bind to output 'memberName'",
       "action": "read",
       "target": {
         "context": {
@@ -245,7 +245,7 @@
     },
     {
       "id": "step-04",
-      "intent": "Read the current savings balance",
+      "intent": "Read the current savings balance to bind to output 'savingsBalance'",
       "action": "read",
       "target": {
         "context": {
@@ -292,7 +292,7 @@
     },
     {
       "id": "step-05",
-      "intent": "Click 'Open New Account' to begin opening a new savings sub-account",
+      "intent": "Click the Open New Account link to begin opening a new {accountType} sub-account",
       "action": "click",
       "target": {
         "context": {
@@ -442,7 +442,7 @@
     },
     {
       "id": "step-08",
-      "intent": "Click 'Continue to Review' to proceed to the review screen",
+      "intent": "Click Continue to Review to reach the review screen for the new {accountType} sub-account",
       "action": "click",
       "target": {
         "context": {
