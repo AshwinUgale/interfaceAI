@@ -46,6 +46,44 @@ export class PolicyEnforcedSurface implements SurfaceDriver {
     return this.raw.currentUrl();
   }
 
+  /**
+   * Decide whether a click should be blocked, by its business destination (not the HTML verb):
+   *  - a form submit (mutating): blocked on irreversible OR unknown risk (fail-closed).
+   *  - a link (GET destination): blocked only on EXPLICIT irreversible risk — unknown GET links are
+   *    ordinary navigation/reads, so blocking them would break the app.
+   */
+  private clickRiskDenied(
+    formAction?: string,
+    formMethod?: string,
+    href?: string
+  ): { route: string; risk: string; reason: string } | null {
+    const base = this.currentUrl();
+    const pathOf = (u: string) => {
+      try {
+        return new URL(u, base).pathname;
+      } catch {
+        return u;
+      }
+    };
+    if (formAction) {
+      const method = formMethod ?? 'POST';
+      const path = pathOf(formAction);
+      const risk = this.policy.riskFor(method, path) ?? 'unknown';
+      if (risk === 'irreversible' || risk === 'unknown') {
+        return { route: `${method} ${path}`, risk, reason: `${risk} action requires human approval (${method} ${path})` };
+      }
+      return null;
+    }
+    if (href) {
+      const path = pathOf(href);
+      const risk = this.policy.riskFor('GET', path);
+      if (risk === 'irreversible') {
+        return { route: `GET ${path}`, risk, reason: `irreversible action requires human approval (GET ${path})` };
+      }
+    }
+    return null;
+  }
+
   async navigate(url: string): Promise<ActionResult> {
     const decision = this.policy.decideNavigate(url);
     if (!decision.allowed) {
@@ -72,22 +110,13 @@ export class PolicyEnforcedSurface implements SurfaceDriver {
         return { ok: false, error: `POLICY_DENIED: ${decision.reason}` };
       }
     }
-    // Fail-closed on risky form submits during discovery.
+    // Fail-closed on risky clicks during discovery (form submits AND irreversible GET links).
     if (req.type === 'click' && req.ref) {
       const node = this.nodes.get(req.ref);
-      const formAction = node?.attrs.formAction;
-      if (formAction) {
-        let path = formAction;
-        try {
-          path = new URL(formAction, this.currentUrl()).pathname;
-        } catch {
-          /* keep */
-        }
-        const risk = this.policy.riskFor(node?.attrs.formMethod ?? 'POST', path);
-        if (risk === 'irreversible' || risk === 'unknown') {
-          this.evidence?.log('policy_denied', { action: 'click', route: `${node?.attrs.formMethod} ${path}`, risk, note: 'requires human approval' });
-          return { ok: false, error: `POLICY_DENIED: ${risk} action requires human approval (${path})` };
-        }
+      const denied = this.clickRiskDenied(node?.attrs.formAction, node?.attrs.formMethod, node?.attrs.href);
+      if (denied) {
+        this.evidence?.log('policy_denied', { action: 'click', ...denied, phase: 'discovery' });
+        return { ok: false, error: `POLICY_DENIED: ${denied.reason}` };
       }
     }
     const r = await this.raw.act(req);
@@ -112,17 +141,11 @@ export class PolicyEnforcedSurface implements SurfaceDriver {
     }
     if (action === 'click') {
       const info = await this.raw.resolveInfo(descriptor);
-      if (info.resolution.status === 'resolved' && info.formAction) {
-        let path = info.formAction;
-        try {
-          path = new URL(info.formAction, this.currentUrl()).pathname;
-        } catch {
-          /* keep */
-        }
-        const risk = this.policy.riskFor(info.formMethod ?? 'POST', path);
-        if (risk === 'irreversible' || risk === 'unknown') {
-          this.evidence?.log('policy_denied', { action: 'click', route: `${info.formMethod} ${path}`, risk, phase: 'replay' });
-          return { result: { ok: false, error: `POLICY_DENIED: ${risk} action requires human approval (${path})` }, resolution: info.resolution };
+      if (info.resolution.status === 'resolved') {
+        const denied = this.clickRiskDenied(info.formAction, info.formMethod, info.href);
+        if (denied) {
+          this.evidence?.log('policy_denied', { action: 'click', ...denied, phase: 'replay' });
+          return { result: { ok: false, error: `POLICY_DENIED: ${denied.reason}` }, resolution: info.resolution };
         }
       }
     }

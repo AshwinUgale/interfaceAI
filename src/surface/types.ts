@@ -117,6 +117,8 @@ export interface TargetInfo {
   resolution: Resolution;
   formAction?: string;
   formMethod?: string;
+  /** For links: the GET destination, so an irreversible GET-link route can be risk-checked too. */
+  href?: string;
 }
 
 export interface PolicyDecision {

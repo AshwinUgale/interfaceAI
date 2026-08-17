@@ -1,8 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { PolicyEngine } from '../src/surface/policy.js';
+import { PolicyEngine, type Allowlist } from '../src/surface/policy.js';
 import { PolicyEnforcedSurface } from '../src/surface/policy-surface.js';
 import { runDiscovery } from '../src/discovery/orchestrator.js';
 import { replay } from '../src/replay/engine.js';
+import { EscalationManager } from '../src/escalation/manager.js';
 import { FakeSurface, tmpEvidenceDir } from './fake-surface.js';
 import { makeCapability } from './test-capability.js';
 import { EvidenceRecorder } from '../src/evidence/recorder.js';
@@ -45,6 +46,50 @@ describe('replay is policy-enforced too (not just discovery)', () => {
     const r = await replay(cap, {}, surface, new EvidenceRecorder(tmpEvidenceDir()), { targetBase: 'http://localhost:4000' });
     expect(r.status).toBe('failure');
     if (r.status === 'failure') expect(r.error.code).toBe('POLICY_DENIED');
+  });
+
+  it('blocks an irreversible GET LINK (not just form submits)', async () => {
+    const alw: Allowlist = {
+      version: 't',
+      origins: ['http://localhost:4000'],
+      routes: [
+        { method: 'GET', pattern: '/' },
+        { method: 'GET', pattern: '/danger' },
+        { method: 'GET', pattern: '/safe' },
+      ],
+      actionTypes: { click: 'allow', navigate: 'allow', type: 'allow', select: 'allow', read: 'allow' },
+      risk: { 'GET /danger': 'irreversible' },
+    };
+    const p = new PolicyEngine(alw);
+    const raw = new FakeSurface();
+    raw.url = 'http://localhost:4000/';
+    raw.href = '/danger';
+    const surface = new PolicyEnforcedSurface(raw, p);
+    const blocked = await surface.resolveAndAct(descriptor, 'click');
+    expect(blocked.result.error).toContain('POLICY_DENIED');
+    // ...but an ordinary (non-irreversible) GET link is allowed — navigation must still work.
+    raw.href = '/safe';
+    const allowed = await surface.resolveAndAct(descriptor, 'click');
+    expect(allowed.result.ok).toBe(true);
+  });
+});
+
+describe('idempotency is absolute (even across a handoff)', () => {
+  it('does NOT re-dispatch a safeToRetry:false action after a recoverable escalation', async () => {
+    const cap = makeCapability({
+      clickRetry: { maxAttempts: 1, retryOn: [], safeToRetry: false },
+      onError: [{ match: { text: 'session expired' }, classify: 'recoverable', outcomeCode: 'SESSION_EXPIRED', action: 'escalate' }],
+    });
+    const raw = new FakeSurface();
+    raw.texts.add('session expired'); // triggers the recoverable rule after the action
+    const surface = new PolicyEnforcedSurface(raw, policy);
+    const escalation = new EscalationManager(new EvidenceRecorder(tmpEvidenceDir()), {
+      autoResolver: async (_req, resume) => resume(),
+    });
+    const r = await replay(cap, {}, surface, new EvidenceRecorder(tmpEvidenceDir()), { targetBase: 'http://localhost:4000', escalation });
+    expect(r.status).toBe('failure');
+    if (r.status === 'failure') expect(r.error.code).toBe('NEEDS_HUMAN_VERIFICATION');
+    expect(raw.resolveAndActCalls).toBe(1); // dispatched exactly once
   });
 });
 

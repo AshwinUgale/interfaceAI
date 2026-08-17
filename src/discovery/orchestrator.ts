@@ -129,7 +129,7 @@ export async function runDiscovery(
     }
 
     const node = decision.ref ? observation.nodes.find((n) => n.ref === decision.ref) : undefined;
-    const routeRisk = computeRouteRisk(policy, decision, node?.attrs.formAction, node?.attrs.formMethod, surface.currentUrl());
+    const routeRisk = computeRouteRisk(policy, decision, node?.attrs.formAction, node?.attrs.formMethod, node?.attrs.href, surface.currentUrl());
 
     const result = await surface.act({ type: decision.action!, ref: decision.ref, url: decision.url, value: decision.value });
 
@@ -177,19 +177,21 @@ function computeRouteRisk(
   decision: Decision,
   formAction: string | undefined,
   formMethod: string | undefined,
+  href: string | undefined,
   baseUrl: string
 ): RouteRisk {
   if (decision.action === 'type' || decision.action === 'select') return 'reversible_write';
   if (decision.action === 'read' || decision.action === 'navigate') return 'read';
   // click:
-  if (formAction) {
-    let path = formAction;
+  const pathOf = (u: string) => {
     try {
-      path = new URL(formAction, baseUrl).pathname;
+      return new URL(u, baseUrl).pathname;
     } catch {
-      /* keep */
+      return u;
     }
-    return (policy.riskFor(formMethod ?? 'POST', path) ?? 'unknown') as RouteRisk;
-  }
-  return 'read'; // link/navigation click
+  };
+  if (formAction) return (policy.riskFor(formMethod ?? 'POST', pathOf(formAction)) ?? 'unknown') as RouteRisk;
+  // A GET link is a read/navigation unless the allowlist explicitly marks its route irreversible.
+  if (href) return policy.riskFor('GET', pathOf(href)) === 'irreversible' ? 'irreversible' : 'read';
+  return 'read';
 }

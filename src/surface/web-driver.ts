@@ -360,8 +360,9 @@ export class WebSurfaceDriver implements SurfaceDriver {
         return {
           formAction: f ? f.getAttribute('action') || undefined : undefined,
           formMethod: f ? (f.getAttribute('method') || 'get').toUpperCase() : undefined,
+          href: el.getAttribute('href') || undefined,
         };
-      })) as { formAction?: string; formMethod?: string };
+      })) as { formAction?: string; formMethod?: string; href?: string };
       return { resolution, ...meta };
     } catch {
       return { resolution };

@@ -108,16 +108,18 @@ successful fallback.
 **Retry/idempotency (the load-bearing safety call):** only safe (idempotent) actions are retried,
 and only when the failure's declared `retryOn` condition (`TRANSIENT_LOAD` / `CHECKPOINT_TIMEOUT`)
 matches — the engine retries the *resolve/wait*, never re-dispatches a `safeToRetry:false` action
-(POST submits and irreversible actions are compiled as such). A side-effecting action whose result
-is unconfirmed **escalates with `sideEffectUncertain=true`** when an operator is attached (else fails
-fast with step context), so a human verifies real state before anything else acts. This is what
-prevents a duplicate transaction.
+(POST submits and irreversible actions are compiled as such). This holds **across a handoff too**: a
+non-idempotent action never auto-re-dispatches after a recoverable escalation — it returns
+`NEEDS_HUMAN_VERIFICATION` (tested). A side-effecting action whose result is unconfirmed
+**escalates with `sideEffectUncertain=true`** when an operator is attached (else fails fast with step
+context), so a human verifies real state before anything else acts. This is what prevents a
+duplicate transaction.
 
 | Class | Example | Response | Result |
 |---|---|---|---|
 | **Business outcome** | "no such member"; "not eligible" | return `outcomeCode` | `business_outcome` (not an error) |
 | **Recoverable** | slow load (auto retry); expired session (needs human) | wait/retry / **escalate** | transparent, else handoff |
-| **Hard failure** | `TARGET_AMBIGUOUS`, `TARGET_NOT_FOUND`, `POLICY_DENIED`, checkpoint timeout | stop + rich evidence | `failure {code, step, expected, observed}` |
+| **Hard failure** | `TARGET_AMBIGUOUS`, `TARGET_NOT_FOUND`, `TARGET_CONTEXT_NOT_FOUND`, `POLICY_DENIED`, `OUTPUT_PARSE_FAILED`, checkpoint timeout | stop + rich evidence | `failure {code, step, expected, observed}` |
 
 `RunResult` is a discriminated union `success | business_outcome | failure | invalid_invocation`
 (type-invalid inputs are rejected at the boundary before any UI — tested). Run **state**
@@ -183,9 +185,11 @@ intervention → resume → completion).
 ## 6. Safety
 
 Two layers: **`PolicyEngine`** pre-validates every automation action — in **discovery *and*
-replay**. A replay click on a form submit is re-checked against the allowlist's route risk
-**independent of the artifact's declared risk**, so a tampered artifact that mislabels an
-irreversible action (`/account/create`) as `automatic` is still blocked (tested). **`SessionGuard`**
+replay**. A click is risk-checked by its **business destination, not the HTML verb**: a form
+submit against the allowlist's route risk **independent of the artifact's declared risk** (so a
+tampered artifact that mislabels `/account/create` as `automatic` is still blocked — tested), and a
+**link's GET destination** too — an irreversible GET-link route is blocked while ordinary navigation
+links pass (tested). **`SessionGuard`**
 enforces containment at the browser-context level (allowlisted origin **and** route on every
 navigation **and every mutating request** — POST/PUT/PATCH/DELETE, by method, closing the JS
 `fetch`/XHR bypass; blocks downloads/popups) and **stays active during human takeover**, because

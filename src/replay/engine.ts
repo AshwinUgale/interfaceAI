@@ -188,10 +188,16 @@ export async function replay(
       }
 
       if (step.action === 'read') {
+        const spec = capability.outputs.find((o) => o.name === step.bindOutput);
         const parsed = parseOutput(capability, step.bindOutput, result.readValue ?? '');
+        // A typed numeric output that doesn't parse is a hard failure, not a silent NaN/0 "success".
+        const numeric = spec?.extract.parse === 'currency' || spec?.extract.parse === 'number';
+        if (numeric && !Number.isFinite(parsed as number)) {
+          steps.push({ stepId: step.id, action: step.action, ok: false, resolution, attempts });
+          return fail('OUTPUT_PARSE_FAILED', step.id, `parse ${spec?.extract.parse}`, JSON.stringify(result.readValue));
+        }
         outputs[step.bindOutput] = parsed;
         // Redact sensitive output values from persisted evidence (respect the artifact's metadata).
-        const spec = capability.outputs.find((o) => o.name === step.bindOutput);
         if (spec && spec.sensitivity !== 'plain') {
           evidence.registerSensitive(String(result.readValue ?? ''));
           evidence.registerSensitive(String(parsed));
@@ -232,8 +238,12 @@ export async function replay(
         }
       }
       if (escalatedRetry) {
+        // Never auto re-dispatch a non-idempotent action after a handoff — the human verified state.
+        if (!retry.safeToRetry) {
+          return fail('NEEDS_HUMAN_VERIFICATION', step.id, 'non-idempotent action not auto re-dispatched after handoff', 'human resolved; verify state manually');
+        }
         attempts = 0;
-        continue; // human fixed state on the same session; re-attempt this step
+        continue; // idempotent action; safe to re-attempt on the same session
       }
 
       // Checkpoint.

@@ -16,16 +16,19 @@ export class FakeSurface implements SurfaceDriver {
   navigate(u: string) { this.navigations.push(u); this.url = u; return Promise.resolve({ ok: true } as ActionResult); }
   observe() { return Promise.resolve({ generation: 1, url: this.url, nodes: [], outline: '' } as Observation); }
   act(_r: ActionRequest) { return Promise.resolve({ ok: true } as ActionResult); }
+  resolveAndActCalls = 0;
   resolveAndAct(_d: TargetDescriptor, _a: ActionType, _v?: string) {
+    this.resolveAndActCalls++;
     const next = this.script.shift();
     if (!next) return Promise.resolve({ result: { ok: true } as ActionResult, resolution: this.resolveOnlyResult });
     return Promise.resolve(next);
   }
   resolveOnly(_d: TargetDescriptor) { return Promise.resolve(this.resolveOnlyResult); }
-  /** Optional form action reported by resolveInfo, to exercise replay-time risk enforcement. */
+  /** Optional form action / link href reported by resolveInfo, to exercise replay-time risk policy. */
   formAction?: string;
+  href?: string;
   resolveInfo(_d: TargetDescriptor): Promise<TargetInfo> {
-    return Promise.resolve({ resolution: this.resolveOnlyResult, formAction: this.formAction, formMethod: this.formAction ? 'POST' : undefined });
+    return Promise.resolve({ resolution: this.resolveOnlyResult, formAction: this.formAction, formMethod: this.formAction ? 'POST' : undefined, href: this.href });
   }
   textPresent(t: string) { return Promise.resolve([...this.texts].some((x) => x.includes(t))); }
   screenshot() { return Promise.resolve(); }
