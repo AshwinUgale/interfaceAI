@@ -191,7 +191,8 @@ function computeRouteRisk(
     }
   };
   if (formAction) return (policy.riskFor(formMethod ?? 'POST', pathOf(formAction)) ?? 'unknown') as RouteRisk;
-  // A GET link is a read/navigation unless the allowlist explicitly marks its route irreversible.
-  if (href) return policy.riskFor('GET', pathOf(href)) === 'irreversible' ? 'irreversible' : 'read';
+  // A GET link carries its classified route risk (read for navigation, irreversible if marked,
+  // unknown if unclassified — the policy layer fails closed on the latter two).
+  if (href) return (policy.riskFor('GET', pathOf(href)) ?? 'unknown') as RouteRisk;
   return 'read';
 }

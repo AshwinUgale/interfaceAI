@@ -160,7 +160,7 @@ export const zOutput = z.object({
     // Extraction is role-driven at replay: a textbox/combobox yields its 'value' (inputValue),
     // anything else yields 'text' (innerText). Only these two are implemented.
     kind: z.enum(['text', 'value']),
-    parse: z.enum(['currency', 'number', 'date']).optional(),
+    parse: z.enum(['currency', 'number']).optional(),
   }),
 });
 

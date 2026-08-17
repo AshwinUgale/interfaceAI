@@ -56,21 +56,24 @@ describe('replay is policy-enforced too (not just discovery)', () => {
         { method: 'GET', pattern: '/' },
         { method: 'GET', pattern: '/danger' },
         { method: 'GET', pattern: '/safe' },
+        { method: 'GET', pattern: '/unclassified' },
       ],
       actionTypes: { click: 'allow', navigate: 'allow', type: 'allow', select: 'allow', read: 'allow' },
-      risk: { 'GET /danger': 'irreversible' },
+      risk: { 'GET /danger': 'irreversible', 'GET /safe': 'read' },
     };
     const p = new PolicyEngine(alw);
     const raw = new FakeSurface();
     raw.url = 'http://localhost:4000/';
-    raw.href = '/danger';
     const surface = new PolicyEnforcedSurface(raw, p);
-    const blocked = await surface.resolveAndAct(descriptor, 'click');
-    expect(blocked.result.error).toContain('POLICY_DENIED');
-    // ...but an ordinary (non-irreversible) GET link is allowed — navigation must still work.
+
+    raw.href = '/danger'; // irreversible GET link -> blocked
+    expect((await surface.resolveAndAct(descriptor, 'click')).result.error).toContain('POLICY_DENIED');
+    // An unclassified (unknown-risk) GET link is ALSO blocked — fail-closed.
+    raw.href = '/unclassified';
+    expect((await surface.resolveAndAct(descriptor, 'click')).result.error).toContain('POLICY_DENIED');
+    // A route explicitly classified 'read' is allowed — ordinary navigation still works.
     raw.href = '/safe';
-    const allowed = await surface.resolveAndAct(descriptor, 'click');
-    expect(allowed.result.ok).toBe(true);
+    expect((await surface.resolveAndAct(descriptor, 'click')).result.ok).toBe(true);
   });
 });
 

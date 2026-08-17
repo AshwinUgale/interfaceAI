@@ -112,6 +112,9 @@ export async function replay(
           if (!(await evalPredicate(surface, p))) return fail('PRECONDITION_UNMET', step.id, JSON.stringify(p));
         }
       }
+      if (step.checkpoint && !(await waitForPredicate(surface, step.checkpoint, 4000))) {
+        return fail('CHECKPOINT_TIMEOUT', step.id, JSON.stringify(step.checkpoint), surface.currentUrl());
+      }
       continue;
     }
     if (step.action === 'waitFor') {
@@ -127,7 +130,16 @@ export async function replay(
       continue;
     }
 
-    // Precondition for action steps.
+    // Capability preconditions, evaluated once at the first state-observing step — so a capability
+    // that does not begin with a navigate still checks them.
+    if (!preconChecked) {
+      preconChecked = true;
+      for (const p of capability.preconditions) {
+        if (!(await evalPredicate(surface, p))) return fail('PRECONDITION_UNMET', step.id, JSON.stringify(p));
+      }
+    }
+
+    // Per-step precondition.
     if ('precondition' in step && step.precondition && !(await evalPredicate(surface, step.precondition))) {
       return fail('PRECONDITION_UNMET', step.id, JSON.stringify(step.precondition));
     }

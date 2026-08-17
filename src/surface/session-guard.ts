@@ -20,26 +20,27 @@ export class SessionGuard {
   constructor(private readonly policy: PolicyEngine) {}
 
   async attach(context: BrowserContext): Promise<void> {
-    // Enforce origin AND route allowlist (by actual method) on every document navigation AND every
-    // mutating request (POST/PUT/PATCH/DELETE) — the latter closes the gap where a JS-driven button
-    // mutates via fetch/XHR without a form navigation. Holds during human takeover too.
+    // Two levels of containment, holding during human takeover too:
+    //  - ORIGIN on every http(s) request (blocks off-allowlist fetch/XHR/resource loads).
+    //  - ROUTE (by method) on navigations AND mutating requests (POST/PUT/PATCH/DELETE) — closes the
+    //    JS-driven fetch/XHR mutation gap.
     const MUTATING = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
     await context.route('**/*', async (route) => {
       const req = route.request();
+      const url = req.url();
+      const block = () => {
+        this.violations.push({ kind: 'navigation', detail: `${req.method()} ${url}`, seq: this.violations.length });
+        return route.abort('blockedbyclient');
+      };
+      if (/^https?:/i.test(url) && !this.policy.originAllowed(url)) return block();
       if (req.isNavigationRequest() || MUTATING.has(req.method())) {
-        const url = req.url();
         let path = '/';
         try {
           path = new URL(url).pathname;
         } catch {
           /* keep default */
         }
-        const originOk = this.policy.originAllowed(url);
-        const routeOk = originOk && this.policy.routeAllowed(req.method(), path);
-        if (!originOk || !routeOk) {
-          this.violations.push({ kind: 'navigation', detail: `${req.method()} ${url}`, seq: this.violations.length });
-          return route.abort('blockedbyclient');
-        }
+        if (!this.policy.routeAllowed(req.method(), path)) return block();
       }
       return route.continue();
     });

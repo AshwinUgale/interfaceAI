@@ -83,8 +83,9 @@ function walker(arg: { generation: number; start: number }): RawNode[] {
         name: el.getAttribute('name') || undefined,
         type: el.getAttribute('type') || undefined,
         href: el.getAttribute('href') || undefined,
-        formAction: role === 'button' && form ? form.getAttribute('action') || undefined : undefined,
-        formMethod: role === 'button' && form ? (form.getAttribute('method') || 'get').toUpperCase() : undefined,
+        // Effective submission target (respects a button's formaction override and a missing action).
+        formAction: role === 'button' && form ? el.formAction || undefined : undefined,
+        formMethod: role === 'button' && form ? (el.formMethod || 'get').toUpperCase() : undefined,
       },
       anchorText,
       rowText,
@@ -356,10 +357,12 @@ export class WebSurfaceDriver implements SurfaceDriver {
     if (resolution.status !== 'resolved' || !locator) return { resolution };
     try {
       const meta = (await locator.evaluate((el: Element) => {
-        const f = (el as HTMLInputElement).form;
+        const c = el as HTMLButtonElement & HTMLInputElement;
+        const isFormControl = (el.tagName === 'BUTTON' || el.tagName === 'INPUT') && !!c.form;
         return {
-          formAction: f ? f.getAttribute('action') || undefined : undefined,
-          formMethod: f ? (f.getAttribute('method') || 'get').toUpperCase() : undefined,
+          // Effective submission target the browser would actually dispatch to.
+          formAction: isFormControl ? c.formAction || undefined : undefined,
+          formMethod: isFormControl ? (c.formMethod || 'get').toUpperCase() : undefined,
           href: el.getAttribute('href') || undefined,
         };
       })) as { formAction?: string; formMethod?: string; href?: string };

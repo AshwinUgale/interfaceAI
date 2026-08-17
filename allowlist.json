@@ -27,7 +27,10 @@
     "upload": "deny"
   },
   "risk": {
-    "$comment": "Per-route business-effect classification. Unknown => human_required (fail-closed). Enforced independently of any risk hint carried in an artifact.",
+    "$comment": "Per-route business-effect classification. Unknown => fail-closed (blocked / human_required), for form submits AND GET links. Every allowlisted GET route is classified so ordinary navigation is permitted while an unclassified route is denied.",
+    "GET /": "read",
+    "GET /branding": "read",
+    "GET /search": "read",
     "GET /member": "read",
     "GET /member/:id": "read",
     "GET /member/:id/summary": "read",

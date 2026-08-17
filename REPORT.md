@@ -68,7 +68,7 @@ Capability { schemaVersion, capabilityId, capabilityVersion, name, description,
   successCondition: Predicate, provenance {recordedFromRunId, model{provider,id}, approvalState} }
 Input  { name, type, required, classification: 'plain'|'pii' }        // never credentials
 Output { name, type, sensitivity: 'plain'|'pii'|'financial',
-         extract {stepId, kind:'text'|'value'|'attribute'|'selectedOption', parse?:'currency'|…} }
+         extract {stepId, kind:'text'|'value', parse?:'currency'|'number'} }
 Step = Navigate|Click|Type|Select|Read|Wait|Assert                    // discriminated union
   each: { id, intent, risk{class:'read'|'reversible_write'|'irreversible',   // param-step intents
           approval:'automatic'|'human_required'},                            // are parameterized
@@ -190,9 +190,10 @@ submit against the allowlist's route risk **independent of the artifact's declar
 tampered artifact that mislabels `/account/create` as `automatic` is still blocked — tested), and a
 **link's GET destination** too — an irreversible GET-link route is blocked while ordinary navigation
 links pass (tested). **`SessionGuard`**
-enforces containment at the browser-context level (allowlisted origin **and** route on every
-navigation **and every mutating request** — POST/PUT/PATCH/DELETE, by method, closing the JS
-`fetch`/XHR bypass; blocks downloads/popups) and **stays active during human takeover**, because
+enforces containment at the browser-context level in two tiers: the **origin allowlist on every
+http(s) request** (blocking off-allowlist `fetch`/XHR/resource loads) and the **route allowlist (by
+method) on navigations and mutating requests** (POST/PUT/PATCH/DELETE); it also blocks
+downloads/popups and **stays active during human takeover**, because
 human clicks don't pass through `act()` — closing the "single choke point" gap honestly. Risk is
 per-step, deterministic, **fail-closed** (unknown ⇒ `human_required`); a missing frame context is a
 fail-closed `TARGET_CONTEXT_NOT_FOUND`, not a silent fallback. **PII ≠

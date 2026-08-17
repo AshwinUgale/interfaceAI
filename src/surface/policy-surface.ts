@@ -76,9 +76,11 @@ export class PolicyEnforcedSurface implements SurfaceDriver {
     }
     if (href) {
       const path = pathOf(href);
-      const risk = this.policy.riskFor('GET', path);
-      if (risk === 'irreversible') {
-        return { route: `GET ${path}`, risk, reason: `irreversible action requires human approval (GET ${path})` };
+      const risk = this.policy.riskFor('GET', path) ?? 'unknown';
+      // Fail-closed: a GET link whose route risk is irreversible OR unclassified is blocked. Every
+      // legitimate navigation route is classified 'read' in the allowlist.
+      if (risk === 'irreversible' || risk === 'unknown') {
+        return { route: `GET ${path}`, risk, reason: `${risk} action requires human approval (GET ${path})` };
       }
     }
     return null;
