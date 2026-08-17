@@ -1,5 +1,5 @@
 import type { SurfaceDriver } from '../src/surface/driver.js';
-import type { ActionRequest, ActionResult, ActionType, Observation, Resolution, TargetDescriptor } from '../src/surface/types.js';
+import type { ActionRequest, ActionResult, ActionType, Observation, Resolution, TargetDescriptor, TargetInfo } from '../src/surface/types.js';
 
 /** Programmable in-memory SurfaceDriver for browserless engine/predicate tests. */
 export class FakeSurface implements SurfaceDriver {
@@ -22,6 +22,11 @@ export class FakeSurface implements SurfaceDriver {
     return Promise.resolve(next);
   }
   resolveOnly(_d: TargetDescriptor) { return Promise.resolve(this.resolveOnlyResult); }
+  /** Optional form action reported by resolveInfo, to exercise replay-time risk enforcement. */
+  formAction?: string;
+  resolveInfo(_d: TargetDescriptor): Promise<TargetInfo> {
+    return Promise.resolve({ resolution: this.resolveOnlyResult, formAction: this.formAction, formMethod: this.formAction ? 'POST' : undefined });
+  }
   textPresent(t: string) { return Promise.resolve([...this.texts].some((x) => x.includes(t))); }
   screenshot() { return Promise.resolve(); }
 }

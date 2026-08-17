@@ -14,10 +14,12 @@ export interface DiscoveryConfig {
   inputs: Record<string, string>;
   entryUrl: string;
   maxSteps?: number;
+  /** Text that must be present when the model calls finish, else the run is rejected as incomplete. */
+  successText?: string;
 }
 
 export interface DiscoveryOutcome {
-  status: 'success' | 'max_steps' | 'dead_end' | 'blocked' | 'failed';
+  status: 'success' | 'incomplete' | 'max_steps' | 'dead_end' | 'blocked' | 'failed';
   reason?: string;
   events: ExecutionEvent[];
 }
@@ -60,6 +62,11 @@ export async function runDiscovery(
     }
 
     if (decision.kind === 'finish') {
+      // Verify the goal state before accepting completion — a model 'finish' is not proof.
+      if (config.successText && !(await surface.textPresent(config.successText))) {
+        evidence.log('finish_rejected', { step, successText: config.successText });
+        return { status: 'incomplete', reason: `finish before success condition (${config.successText})`, events };
+      }
       evidence.log('discovery_finish', { step, intent: decision.intent });
       await evidence.shot(surface, 'discovery-final');
       return { status: 'success', events };
@@ -79,7 +86,8 @@ export async function runDiscovery(
       intent: decision.intent,
       expectedEffect: decision.expectedEffect,
       action: decision.action!,
-      rawValue: decision.value,
+      // Prefer the canonical applied value (e.g. a select's option value) so parameterization works.
+      rawValue: result.canonicalValue ?? decision.value,
       bindOutput: decision.bindOutput,
       readValue: result.readValue,
       resolved: result.resolved,

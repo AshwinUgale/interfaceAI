@@ -158,25 +158,28 @@ intervention → resume → completion).
 
 ## 6. Safety
 
-Two layers: **`PolicyEngine`** pre-validates every automation action (allowlisted origin/route,
-allowed action type, and — for form submits — per-route risk, blocking irreversible/unknown);
-**`SessionGuard`** enforces containment at the browser-context level (allowlisted origin **and**
-route on every navigation, by method; blocks downloads/popups) and **stays active during human
-takeover**, because human clicks don't pass through `act()` — this closes the "single choke point"
-gap honestly (a tampered artifact that navigates off-allowlist is aborted; tested at the policy
-layer). Risk is per-step, deterministic, **fail-closed** (unknown ⇒ `human_required`). **PII ≠
+Two layers: **`PolicyEngine`** pre-validates every automation action — in **discovery *and*
+replay**. A replay click on a form submit is re-checked against the allowlist's route risk
+**independent of the artifact's declared risk**, so a tampered artifact that mislabels an
+irreversible action (`/account/create`) as `automatic` is still blocked (tested). **`SessionGuard`**
+enforces containment at the browser-context level (allowlisted origin **and** route on every
+navigation, by method; blocks downloads/popups) and **stays active during human takeover**, because
+human clicks don't pass through `act()` — closing the "single choke point" gap honestly. Risk is
+per-step, deterministic, **fail-closed** (unknown ⇒ `human_required`); a missing frame context is a
+fail-closed `TARGET_CONTEXT_NOT_FOUND`, not a silent fallback. **PII ≠
 secrets:** invocation params are `plain|pii`, carried as `{param}` and supplied per-invocation, never
 stored in the artifact (verified PII-free); credentials would come from a separate secret provider
 (the demo app has no login, so none are handled) and are never inputs. The `EvidenceRecorder` masks
-any **registered sensitive value** wherever it appears in logs/artifacts (pii inputs are registered);
+any **registered sensitive value** wherever it appears in logs/artifacts, including **sensitive
+outputs** masked per the artifact's sensitivity metadata (`memberName → J****`, `balance → 4***`);
 observations are persisted only as summaries, not raw node dumps. Discovery evidence is a sanitized
 event log ("what & why"), never a raw transcript or chain-of-thought. **Prompt-injection stance:** UI
 content is untrusted data, never policy — the model can't expand its allowlist from text the app
-renders (`model proposes / policy decides`). **Limits (honest):** demo output values and screenshots
-are synthetic and shown un-redacted for illustration (registering output PII is a one-line change;
-screenshot redaction is a cut); the allowlist is only as good as its config; `SessionGuard` guards
-the obvious paths, not a full sandbox; `approvalState` is co-located in the JSON here but would be
-external, digest-bound metadata in production.
+renders (`model proposes / policy decides`). **Limits (honest):** committed screenshots use synthetic
+data and are not pixel-redacted (screenshot-level redaction is a documented cut); the allowlist is
+only as good as its config; `SessionGuard` guards the obvious paths, not a full sandbox;
+`approvalState` is co-located in the JSON here but would be external, digest-bound metadata in
+production.
 
 ## 7. Cuts
 

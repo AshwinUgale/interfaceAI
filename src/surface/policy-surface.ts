@@ -18,6 +18,7 @@ import type {
   Resolution,
   SurfaceNode,
   TargetDescriptor,
+  TargetInfo,
 } from './types.js';
 
 export class PolicyDenied extends Error {
@@ -94,15 +95,44 @@ export class PolicyEnforcedSurface implements SurfaceDriver {
     return r;
   }
 
-  resolveAndAct(
+  /**
+   * Replay path. Policy is enforced here too — NOT just during discovery — and independently of the
+   * artifact's declared risk: a click on a form submit is re-checked against the allowlist's route
+   * risk, so a tampered artifact that mislabels an irreversible action as `automatic` is still
+   * blocked (fail-closed on irreversible/unknown).
+   */
+  async resolveAndAct(
     descriptor: TargetDescriptor,
     action: ActionType,
     value?: string
   ): Promise<{ result: ActionResult; resolution: Resolution }> {
+    const decision = this.policy.decideAction(action);
+    if (!decision.allowed) {
+      return { result: { ok: false, error: `POLICY_DENIED: ${decision.reason}` }, resolution: { status: 'not_found', matchCount: 0, fallbackUsed: false } };
+    }
+    if (action === 'click') {
+      const info = await this.raw.resolveInfo(descriptor);
+      if (info.resolution.status === 'resolved' && info.formAction) {
+        let path = info.formAction;
+        try {
+          path = new URL(info.formAction, this.currentUrl()).pathname;
+        } catch {
+          /* keep */
+        }
+        const risk = this.policy.riskFor(info.formMethod ?? 'POST', path);
+        if (risk === 'irreversible' || risk === 'unknown') {
+          this.evidence?.log('policy_denied', { action: 'click', route: `${info.formMethod} ${path}`, risk, phase: 'replay' });
+          return { result: { ok: false, error: `POLICY_DENIED: ${risk} action requires human approval (${path})` }, resolution: info.resolution };
+        }
+      }
+    }
     return this.raw.resolveAndAct(descriptor, action, value);
   }
   resolveOnly(descriptor: TargetDescriptor): Promise<Resolution> {
     return this.raw.resolveOnly(descriptor);
+  }
+  resolveInfo(descriptor: TargetDescriptor): Promise<TargetInfo> {
+    return this.raw.resolveInfo(descriptor);
   }
   textPresent(text: string): Promise<boolean> {
     return this.raw.textPresent(text);

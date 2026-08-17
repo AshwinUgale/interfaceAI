@@ -1,12 +1,13 @@
 import { describe, it, expect } from 'vitest';
 import { compile } from '../src/discovery/compiler.js';
 import type { ExecutionEvent } from '../src/discovery/events.js';
-import { CAP, INPUT_SPECS, OUTPUT_SPECS, OUTPUT_EXTRACT } from '../src/discovery/capability-spec.js';
+import { CAP, INPUT_SPECS, OUTPUT_SPECS, OUTPUT_EXTRACT, ERROR_POLICY } from '../src/discovery/capability-spec.js';
 
 const events: ExecutionEvent[] = [
   { intent: 'open', action: 'navigate', url: 'http://localhost:4000/', routeRisk: 'read' },
   {
-    intent: 'enter member id',
+    // Intent embeds the member id — the compiler must scrub it.
+    intent: 'Enter the member ID 10001 to search',
     action: 'type',
     rawValue: '10001',
     routeRisk: 'reversible_write',
@@ -19,6 +20,20 @@ const events: ExecutionEvent[] = [
     readValue: 'Jane A. Rivera',
     routeRisk: 'read',
     resolved: { role: 'cell', name: 'Jane A. Rivera', framePath: ['workspace'], anchorText: 'Member Name', rowText: 'Member NameJane A. Rivera', candidates: [{ strategy: 'tableCell', rowContainsText: 'Member Name', column: 2 }] },
+  },
+  {
+    // Model selected the LABEL "Savings"; the driver reports canonical value "savings".
+    intent: 'choose account type',
+    action: 'select',
+    rawValue: 'savings',
+    routeRisk: 'reversible_write',
+    resolved: { role: 'combobox', name: '', framePath: ['workspace'], anchorText: 'Account Type', candidates: [{ strategy: 'anchorCell', anchorText: 'Account Type', control: 'select' }] },
+  },
+  {
+    intent: 'continue to review',
+    action: 'click',
+    routeRisk: 'reversible_write',
+    resolved: { role: 'button', name: 'Continue to Review', framePath: ['workspace'], candidates: [{ strategy: 'roleName', role: 'button', name: 'Continue to Review' }] },
   },
 ];
 
@@ -37,11 +52,28 @@ describe('artifact compiler (deterministic, no LLM)', () => {
     inputSpecs: INPUT_SPECS,
     outputSpecs: OUTPUT_SPECS,
     outputExtract: OUTPUT_EXTRACT,
+    errorPolicy: ERROR_POLICY,
   });
 
   it('parameterizes a typed value that matches an input (10001 -> {param: memberId})', () => {
     const typeStep = cap.steps.find((s) => s.action === 'type')!;
     expect('value' in typeStep && typeStep.value).toEqual({ param: 'memberId' });
+  });
+
+  it('scrubs member PII from intent text (no 10001 anywhere in the artifact)', () => {
+    const typeStep = cap.steps.find((s) => s.action === 'type')!;
+    expect(typeStep.intent).toBe('Enter the member ID {memberId} to search');
+    expect(JSON.stringify(cap)).not.toContain('10001');
+  });
+
+  it('parameterizes accountType from the canonical select value (not the label)', () => {
+    const selectStep = cap.steps.find((s) => s.action === 'select')!;
+    expect('value' in selectStep && selectStep.value).toEqual({ param: 'accountType' });
+  });
+
+  it('marks a POST submit click as not safe to re-dispatch', () => {
+    const clickStep = cap.steps.find((s) => s.action === 'click')!;
+    expect('retryPolicy' in clickStep && clickStep.retryPolicy.safeToRetry).toBe(false);
   });
 
   it('anchors the read locator on the label, and never embeds the member value', () => {

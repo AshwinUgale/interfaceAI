@@ -21,7 +21,12 @@ export function createApp(tenantId: string | undefined): Express {
 
   // ---- Normal UI surface (what the automation drives) --------------------------------------
 
-  app.get('/', (_req, res) => res.type('html').send(R.frameShell(t)));
+  app.get('/', (req, res) => {
+    // Optional workspace path so a post-timeout re-entry lands on the member inside the frameset.
+    const raw = String(req.query.ws ?? '/search');
+    const ws = raw.startsWith('/') && !raw.startsWith('//') ? raw : '/search';
+    res.type('html').send(R.frameShell(t, ws));
+  });
   app.get('/branding', (_req, res) => res.type('html').send(R.brandingPage(t)));
   app.get('/search', (_req, res) => res.type('html').send(R.searchPage(t)));
 

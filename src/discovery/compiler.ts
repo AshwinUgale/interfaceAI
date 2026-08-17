@@ -32,11 +32,18 @@ export interface CompileOptions {
   inputSpecs: Input[];
   outputSpecs: Array<{ name: string; type: Output['type']; sensitivity: Output['sensitivity']; description?: string }>;
   outputExtract: Record<string, { kind: Output['extract']['kind']; parse?: Output['extract']['parse'] }>;
+  /** Domain policy: app-specific error rules + checkpoints, kept out of the generic compiler. */
+  errorPolicy: {
+    onErrorFor: (name: string, role: string) => ErrorRuleT[];
+    checkpointFor: (name: string, role: string) => Predicate | undefined;
+  };
 }
 
 const READ_RETRY = { maxAttempts: 3, retryOn: ['CHECKPOINT_TIMEOUT', 'TRANSIENT_LOAD'], safeToRetry: true };
-const WRITE_RETRY = { maxAttempts: 2, retryOn: ['TRANSIENT_LOAD'], safeToRetry: true };
-const IRREVERSIBLE_RETRY = { maxAttempts: 1, retryOn: [], safeToRetry: false };
+const FILL_RETRY = { maxAttempts: 2, retryOn: ['TRANSIENT_LOAD'], safeToRetry: true };
+const CLICK_GET_RETRY = { maxAttempts: 2, retryOn: ['TRANSIENT_LOAD', 'CHECKPOINT_TIMEOUT'], safeToRetry: true };
+// Submits and irreversible actions are NEVER re-dispatched (idempotency guard).
+const NO_REDISPATCH_RETRY = { maxAttempts: 1, retryOn: [], safeToRetry: false };
 
 type StepRisk = { class: 'read' | 'reversible_write' | 'irreversible'; approval: 'automatic' | 'human_required' };
 function riskFor(routeRisk: RouteRisk): StepRisk {
@@ -67,25 +74,32 @@ function descriptorFrom(resolved: ResolvedTarget, mustBeEnabled: boolean, expect
 
 function valueSource(raw: string | undefined, inputs: Record<string, string>): ValueSource {
   if (raw !== undefined) {
-    for (const [name, val] of Object.entries(inputs)) if (val === raw) return { param: name };
+    for (const [name, val] of Object.entries(inputs)) {
+      if (val === raw || val.toLowerCase() === raw.toLowerCase()) return { param: name };
+    }
   }
   return { literal: raw ?? '' };
 }
-
-// Error rules seeded by which control was acted on.
-const NOT_FOUND: ErrorRuleT = { match: { text: 'No record found' }, classify: 'business', outcomeCode: 'MEMBER_NOT_FOUND', action: 'return' };
-const PERMISSION: ErrorRuleT = { match: { text: 'do not have permission' }, classify: 'business', outcomeCode: 'PERMISSION_DENIED', action: 'return' };
-const SESSION: ErrorRuleT = { match: { text: 'session has expired' }, classify: 'recoverable', outcomeCode: 'SESSION_EXPIRED', action: 'escalate' };
-const VALIDATION: ErrorRuleT = { match: { text: 'must be a positive dollar amount' }, classify: 'business', outcomeCode: 'VALIDATION_ERROR', action: 'return' };
-const NOT_ELIGIBLE: ErrorRuleT = { match: { text: 'not eligible' }, classify: 'business', outcomeCode: 'NOT_ELIGIBLE', action: 'return' };
 
 export function compile(events: ExecutionEvent[], opts: CompileOptions): Capability {
   const steps: Step[] = [];
   const readStepIdByOutput: Record<string, string> = {};
 
+  // Scrub PII input VALUES from free-text intents so the artifact carries no member data.
+  const piiValues = opts.inputSpecs
+    .filter((s) => s.classification === 'pii')
+    .map((s) => ({ name: s.name, val: opts.inputs[s.name] }))
+    .filter((x): x is { name: string; val: string } => !!x.val);
+  const scrub = (text?: string): string | undefined => {
+    if (!text) return text;
+    let t = text;
+    for (const { name, val } of piiValues) t = t.split(val).join(`{${name}}`);
+    return t;
+  };
+
   events.forEach((ev, i) => {
     const id = `step-${String(i).padStart(2, '0')}`;
-    const common = { id, intent: ev.intent, ...(ev.expectedEffect ? { expectedEffect: ev.expectedEffect } : {}) };
+    const common = { id, intent: scrub(ev.intent)!, ...(ev.expectedEffect ? { expectedEffect: scrub(ev.expectedEffect) } : {}) };
 
     if (ev.action === 'navigate') {
       let path = '/';
@@ -106,7 +120,7 @@ export function compile(events: ExecutionEvent[], opts: CompileOptions): Capabil
         target: descriptorFrom(ev.resolved, true, ev.resolved.name || undefined),
         value: valueSource(ev.rawValue, opts.inputs),
         risk: riskFor(ev.routeRisk),
-        retryPolicy: WRITE_RETRY,
+        retryPolicy: FILL_RETRY,
       });
     } else if (ev.action === 'select') {
       steps.push({
@@ -115,7 +129,7 @@ export function compile(events: ExecutionEvent[], opts: CompileOptions): Capabil
         target: descriptorFrom(ev.resolved, true, ev.resolved.name || undefined),
         value: valueSource(ev.rawValue, opts.inputs),
         risk: riskFor(ev.routeRisk),
-        retryPolicy: WRITE_RETRY,
+        retryPolicy: FILL_RETRY,
       });
     } else if (ev.action === 'read') {
       const out = ev.bindOutput!;
@@ -129,24 +143,10 @@ export function compile(events: ExecutionEvent[], opts: CompileOptions): Capabil
         retryPolicy: READ_RETRY,
       });
     } else if (ev.action === 'click') {
-      const name = ev.resolved.name;
-      const isSearch = name === 'Search';
-      const isContinue = /Continue/.test(name);
-      const isOpen = ev.resolved.role === 'link';
-      const onError: ErrorRuleT[] = isSearch
-        ? [NOT_FOUND, PERMISSION]
-        : isOpen
-          ? [SESSION]
-          : isContinue
-            ? [VALIDATION, NOT_ELIGIBLE]
-            : [];
-      const checkpoint: Predicate | undefined = isSearch
-        ? { kind: 'textMatches', text: 'Member Details' }
-        : isOpen
-          ? { kind: 'textMatches', text: 'Open Sub-Account' }
-          : isContinue
-            ? { all: [{ kind: 'textMatches', text: 'Review New Sub-Account' }, { kind: 'textMatches', text: 'Review Reference' }] }
-            : undefined;
+      const onError = opts.errorPolicy.onErrorFor(ev.resolved.name, ev.resolved.role);
+      const checkpoint = opts.errorPolicy.checkpointFor(ev.resolved.name, ev.resolved.role);
+      // A GET click (e.g. Search) is safe to re-dispatch; a POST submit / irreversible is not.
+      const retryPolicy = ev.routeRisk === 'read' ? CLICK_GET_RETRY : NO_REDISPATCH_RETRY;
       steps.push({
         ...common,
         action: 'click',
@@ -154,7 +154,7 @@ export function compile(events: ExecutionEvent[], opts: CompileOptions): Capabil
         risk: riskFor(ev.routeRisk),
         ...(checkpoint ? { checkpoint } : {}),
         ...(onError.length ? { onError } : {}),
-        retryPolicy: ev.routeRisk === 'irreversible' ? IRREVERSIBLE_RETRY : WRITE_RETRY,
+        retryPolicy,
       });
     }
   });

@@ -36,6 +36,11 @@ export class EvidenceRecorder {
         for (const secret of this.sensitive) s = s.split(secret).join(mask(secret));
         return s;
       }
+      if (typeof v === 'number') {
+        // Mask a numeric value whose exact string form was registered sensitive (e.g. a balance).
+        const s = String(v);
+        return this.sensitive.includes(s) ? mask(s) : v;
+      }
       if (Array.isArray(v)) return v.map(walk);
       if (v && typeof v === 'object') {
         return Object.fromEntries(Object.entries(v).map(([k, val]) => [k, walk(val)]));

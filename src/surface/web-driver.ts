@@ -141,7 +141,7 @@ export class WebSurfaceDriver implements SurfaceDriver {
 
   private frameUrl(framePath: string[]): string {
     const f = this.frameFor(framePath);
-    return 'url' in f ? f.url() : this.getPage().url();
+    return f && 'url' in f ? f.url() : this.getPage().url();
   }
 
   /** Click, then wait for the acted frame to navigate (form submits target a subframe). */
@@ -255,8 +255,12 @@ export class WebSurfaceDriver implements SurfaceDriver {
     try {
       if (req.type === 'click') await this.clickAndSettle(loc, node.framePath);
       else if (req.type === 'type') await loc.fill(req.value ?? '');
-      else if (req.type === 'select') await this.selectInto(loc, req.value ?? '');
-      else if (req.type === 'read') return { ok: true, readValue: await this.readFrom(loc, node.role), resolved };
+      else if (req.type === 'select') {
+        await this.selectInto(loc, req.value ?? '');
+        // Record the option's canonical value (not the label), so parameterization matches inputs.
+        const canonicalValue = await loc.inputValue().catch(() => undefined);
+        return { ok: true, resolved, canonicalValue };
+      } else if (req.type === 'read') return { ok: true, readValue: await this.readFrom(loc, node.role), resolved };
       return { ok: true, resolved };
     } catch (e) {
       return { ok: false, error: (e as Error).message, resolved };
@@ -278,14 +282,16 @@ export class WebSurfaceDriver implements SurfaceDriver {
 
   // ---- Replay-side resolution ---------------------------------------------------------------
 
-  private frameFor(path: string[]): Frame | Page {
+  private frameFor(path: string[]): Frame | Page | null {
     const page = this.getPage();
     if (path.length === 0) return page;
     for (const frame of page.frames()) {
       if (this.framePathOf(frame).join('/') === path.join('/')) return frame;
     }
-    const last = path[path.length - 1]!;
-    return page.frames().find((f) => f.name() === last) ?? page;
+    // Exact frame context missing. Fall back to the top page ONLY for a single-document page
+    // (no child frames) — the post-handoff bare-page case. Otherwise fail closed (no guessing a
+    // different same-named frame): the caller reports context_missing.
+    return page.frames().length > 1 ? null : page;
   }
 
   private buildLocator(scope: Frame | Page, cand: LocatorCandidate): Locator {
@@ -312,6 +318,7 @@ export class WebSurfaceDriver implements SurfaceDriver {
   ): Promise<{ resolution: Resolution; locator?: Locator }> {
     await this.settle();
     const scope = this.frameFor(descriptor.context.frames.map((f) => f.name));
+    if (!scope) return { resolution: { status: 'context_missing', matchCount: 0, fallbackUsed: false } };
     for (let idx = 0; idx < descriptor.candidates.length; idx++) {
       const loc = this.buildLocator(scope, descriptor.candidates[idx]!);
       let count = 0;
@@ -343,6 +350,23 @@ export class WebSurfaceDriver implements SurfaceDriver {
 
   async resolveOnly(descriptor: TargetDescriptor): Promise<Resolution> {
     return (await this.resolveLocator(descriptor)).resolution;
+  }
+
+  async resolveInfo(descriptor: TargetDescriptor): Promise<import('./types.js').TargetInfo> {
+    const { resolution, locator } = await this.resolveLocator(descriptor);
+    if (resolution.status !== 'resolved' || !locator) return { resolution };
+    try {
+      const meta = (await locator.evaluate((el: Element) => {
+        const f = (el as HTMLInputElement).form;
+        return {
+          formAction: f ? f.getAttribute('action') || undefined : undefined,
+          formMethod: f ? (f.getAttribute('method') || 'get').toUpperCase() : undefined,
+        };
+      })) as { formAction?: string; formMethod?: string };
+      return { resolution, ...meta };
+    } catch {
+      return { resolution };
+    }
   }
 
   async resolveAndAct(

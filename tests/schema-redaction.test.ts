@@ -19,7 +19,8 @@ describe('artifact schema', () => {
 
   it('does not contain member PII (values are parameterized/output-bound, not embedded)', () => {
     const blob = readFileSync('artifacts/open-sub-account.json', 'utf8');
-    for (const pii of ['Jane', 'Rivera', 'Dana', '4,250', '4250']) expect(blob.includes(pii)).toBe(false);
+    // Includes the actual pii INPUT value (10001) — the leak the previous test missed.
+    for (const pii of ['10001', 'Jane', 'Rivera', 'Dana', '4,250', '4250']) expect(blob.includes(pii)).toBe(false);
   });
 });
 

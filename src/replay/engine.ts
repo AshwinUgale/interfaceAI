@@ -83,6 +83,9 @@ export async function replay(
   };
 
   for (const step of capability.steps) {
+    // Ownership: automation may only act while it holds the control token (real check, not a claim).
+    if (opts.escalation) opts.escalation.token.assertAgentOwns();
+
     // Risk gate.
     if ('risk' in step && step.risk.approval === 'human_required' && !opts.approved) {
       if (!opts.escalation) return fail('NEEDS_APPROVAL', step.id);
@@ -140,6 +143,10 @@ export async function replay(
       attempts++;
       const { result, resolution } = await surface.resolveAndAct(target, step.action, value);
 
+      if (resolution.status === 'context_missing') {
+        steps.push({ stepId: step.id, action: step.action, ok: false, resolution, attempts });
+        return fail('TARGET_CONTEXT_NOT_FOUND', step.id, JSON.stringify(target.context), 'expected frame not present');
+      }
       if (resolution.status === 'ambiguous') {
         steps.push({ stepId: step.id, action: step.action, ok: false, resolution, attempts });
         return fail('TARGET_AMBIGUOUS', step.id, 'exactlyOne match', `${resolution.matchCount} matches`);
@@ -156,7 +163,16 @@ export async function replay(
         return fail('ACTION_FAILED', step.id, undefined, result.error);
       }
 
-      if (step.action === 'read') outputs[step.bindOutput] = parseOutput(capability, step.bindOutput, result.readValue ?? '');
+      if (step.action === 'read') {
+        const parsed = parseOutput(capability, step.bindOutput, result.readValue ?? '');
+        outputs[step.bindOutput] = parsed;
+        // Redact sensitive output values from persisted evidence (respect the artifact's metadata).
+        const spec = capability.outputs.find((o) => o.name === step.bindOutput);
+        if (spec && spec.sensitivity !== 'plain') {
+          evidence.registerSensitive(String(result.readValue ?? ''));
+          evidence.registerSensitive(String(parsed));
+        }
+      }
 
       // Error rules (business / recoverable / hard-failure) evaluated on the resulting state.
       let escalatedRetry = false;
@@ -200,7 +216,9 @@ export async function replay(
       if ('checkpoint' in step && step.checkpoint) {
         const ok = await waitForPredicate(surface, step.checkpoint, 4000);
         if (!ok) {
-          if (retry.safeToRetry && attempts < retry.maxAttempts) continue;
+          // Retry a failed checkpoint only for actions declared safe to re-dispatch AND only when
+          // CHECKPOINT_TIMEOUT is a declared retryOn condition (never blindly re-submit a write).
+          if (retry.safeToRetry && attempts < retry.maxAttempts && retry.retryOn.includes('CHECKPOINT_TIMEOUT')) continue;
           const shot = await evidence.shot(surface, 'checkpoint-fail');
           steps.push({ stepId: step.id, action: step.action, ok: false, resolution, attempts });
           return fail('CHECKPOINT_TIMEOUT', step.id, JSON.stringify(step.checkpoint), surface.currentUrl(), [shot]);

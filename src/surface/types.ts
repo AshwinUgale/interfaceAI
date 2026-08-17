@@ -98,16 +98,25 @@ export interface ActionResult {
   ok: boolean;
   /** For read actions. */
   readValue?: string;
+  /** Canonical value actually applied (e.g. a select's option value, not the label typed). */
+  canonicalValue?: string;
   resolved?: ResolvedTarget;
   error?: string;
 }
 
 /** Outcome of resolving a durable descriptor during replay. */
 export interface Resolution {
-  status: 'resolved' | 'not_found' | 'ambiguous';
+  status: 'resolved' | 'not_found' | 'ambiguous' | 'context_missing';
   matchCount: number;
   candidateIndex?: number; // which candidate resolved it
   fallbackUsed: boolean; // true if a non-primary candidate resolved it
+}
+
+/** Element metadata resolved WITHOUT acting — used to enforce risk policy on replay clicks. */
+export interface TargetInfo {
+  resolution: Resolution;
+  formAction?: string;
+  formMethod?: string;
 }
 
 export interface PolicyDecision {

@@ -6,6 +6,7 @@ import type {
   Observation,
   Resolution,
   TargetDescriptor,
+  TargetInfo,
 } from './types.js';
 
 export interface SurfaceDriver {
@@ -28,6 +29,8 @@ export interface SurfaceDriver {
   ): Promise<{ result: ActionResult; resolution: Resolution }>;
   /** Replay/predicates: resolve without acting. */
   resolveOnly(descriptor: TargetDescriptor): Promise<Resolution>;
+  /** Resolve without acting and report element metadata (form action/method) for risk policy. */
+  resolveInfo(descriptor: TargetDescriptor): Promise<TargetInfo>;
 
   /** Predicate primitive: is `text` present anywhere across frames? */
   textPresent(text: string): Promise<boolean>;

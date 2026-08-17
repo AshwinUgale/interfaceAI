@@ -17,4 +17,4 @@
 {"seq":16,"type":"observe","generation":8,"url":"http://localhost:4000/","nodeCount":9}
 {"seq":17,"type":"act","action":"click","ref":"obs_8:e8","ok":true}
 {"seq":18,"type":"observe","generation":9,"url":"http://localhost:4000/","nodeCount":12}
-{"seq":19,"type":"discovery_finish","step":8,"intent":"Goal completed: Looked up member 1****, read member name 'Jane A. Rivera' and s**** balance '$4,250.00', opened new s**** sub-account with $5** opening deposit, and reached the review screen without clicking Create Account"}
+{"seq":19,"type":"discovery_finish","step":8,"intent":"Goal completed: Successfully looked up member 1****, read member name 'Jane A. Rivera' and s**** balance '$4,250.00', opened a new s**** sub-account with $5** opening deposit, and reached the review screen without clicking Create Account"}

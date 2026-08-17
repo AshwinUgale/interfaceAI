@@ -28,12 +28,14 @@ ${body}
 </body></html>`;
 }
 
-/** Top-level frameset document. */
-export function frameShell(t: TenantConfig): string {
+/** Top-level frameset document. `wsPath` sets the workspace frame's initial page (default search),
+ * so a human returning after a session timeout re-enters the SAME frameset session rather than a
+ * bare page. */
+export function frameShell(t: TenantConfig, wsPath = '/search'): string {
   return `<html><head><title>${esc(t.brandName)}</title></head>
 <frameset rows="70,*" border="1">
   <frame name="branding" title="Branding" src="/branding" scrolling="no" noresize>
-  <frame name="workspace" title="Member Workspace" src="/search">
+  <frame name="workspace" title="Member Workspace" src="${esc(wsPath)}">
 </frameset>
 <noframes><body>This application requires frames.</body></noframes>
 </html>`;

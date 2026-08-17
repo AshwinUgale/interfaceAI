@@ -12,12 +12,13 @@ import { EvidenceRecorder } from '../evidence/recorder.js';
 import { buildSurface } from '../surface/build.js';
 import { runDiscovery } from '../discovery/orchestrator.js';
 import { compile } from '../discovery/compiler.js';
-import { ScriptedBrain } from '../discovery/brain.js';
+import { ScriptedBrain, type Brain } from '../discovery/brain.js';
+import { LlmBrain } from '../discovery/llm-brain.js';
 import { replay } from '../replay/engine.js';
 import { EscalationManager } from '../escalation/manager.js';
 import { zCapability, type Capability } from '../artifact/schema.js';
 import { applyOverlay, type TenantOverlay } from '../artifact/overlay.js';
-import { CAP, INPUT_SPECS, OUTPUT_SPECS, OUTPUT_EXTRACT, DEFAULT_INPUTS } from '../discovery/capability-spec.js';
+import { CAP, INPUT_SPECS, OUTPUT_SPECS, OUTPUT_EXTRACT, DEFAULT_INPUTS, ERROR_POLICY } from '../discovery/capability-spec.js';
 
 const BASE = 'http://localhost:4000';
 const TENANT_B = 'http://localhost:4001';
@@ -28,10 +29,24 @@ async function discovery(): Promise<{ capability: Capability; sha: string }> {
   const { surface, policy, stop } = await buildSurface(ALLOW, evidence, { headless: true });
   try {
     const inputs = { ...DEFAULT_INPUTS };
-    const outcome = await runDiscovery(surface, policy, new ScriptedBrain(), evidence, {
-      goal: 'Look up member 10001, read the savings balance, open a savings sub-account with a 500 dollar deposit, and reach the review screen.',
+    // Genuine LLM discovery when a key is present; scripted otherwise. Provenance records which.
+    const key = process.env.ANTHROPIC_API_KEY;
+    let brain: Brain;
+    let model: { provider: string; id: string };
+    if (key) {
+      const id = process.env.DISCOVERY_MODEL ?? 'claude-sonnet-4-5';
+      brain = new LlmBrain(id, key);
+      model = { provider: 'anthropic', id };
+    } else {
+      brain = new ScriptedBrain();
+      model = { provider: 'scripted', id: 'scripted-canonical' };
+    }
+    console.log(`[evidence] discovery brain=${brain.name}`);
+    const outcome = await runDiscovery(surface, policy, brain, evidence, {
+      goal: "Look up member 10001. Read the member's name and bind it to output 'memberName'. Read the current savings balance and bind it to output 'savingsBalance'. Then open a new savings sub-account with a 500 dollar opening deposit and reach the review screen. Do not click Create Account.",
       inputs,
       entryUrl: `${BASE}/`,
+      successText: 'Review New Sub-Account',
     });
     if (outcome.status !== 'success') throw new Error(`discovery failed: ${outcome.status} ${outcome.reason ?? ''}`);
     const capability = compile(outcome.events, {
@@ -40,7 +55,7 @@ async function discovery(): Promise<{ capability: Capability; sha: string }> {
       name: CAP.name,
       description: CAP.description,
       runId: 'disc-001',
-      model: { provider: 'scripted', id: 'scripted-canonical' },
+      model,
       applicationFamily: CAP.applicationFamily,
       variant: 'base',
       versionFingerprint: CAP.versionFingerprint,
@@ -49,14 +64,15 @@ async function discovery(): Promise<{ capability: Capability; sha: string }> {
       inputSpecs: INPUT_SPECS,
       outputSpecs: OUTPUT_SPECS,
       outputExtract: OUTPUT_EXTRACT,
+      errorPolicy: ERROR_POLICY,
     });
     mkdirSync('artifacts', { recursive: true });
     const json = JSON.stringify(capability, null, 2);
     writeFileSync(join('artifacts', `${CAP.capabilityId}.json`), json);
     const sha = createHash('sha256').update(json).digest('hex');
     evidence.writeJson(`${CAP.capabilityId}.json`, capability);
-    evidence.finalize('run.json', { runId: 'disc-001', status: 'success', brain: 'scripted', artifactSha256: sha, steps: capability.steps.length });
-    console.log(`[evidence] discovery ok — artifact sha256=${sha.slice(0, 12)}…`);
+    evidence.finalize('run.json', { runId: 'disc-001', status: 'success', brain: brain.name, model, artifactSha256: sha, steps: capability.steps.length });
+    console.log(`[evidence] discovery ok (${model.provider}/${model.id}) — artifact sha256=${sha.slice(0, 12)}…`);
     return { capability, sha };
   } finally {
     await stop();
@@ -80,7 +96,8 @@ async function replayScenario(
         autoResolver: async (req, resume) => {
           escalation!.recordHumanAction(req.stepId, 'Re-authenticated the expired session and returned to the member record.');
           await harnessPost(targetBase, '/_harness/clear-poison', { memberId: extra.escalationMemberId });
-          await surface.navigate(`${targetBase}/member/${extra.escalationMemberId}`);
+          // Return WITHIN the frameset (workspace shows the member) — same session, not a bare page.
+          await surface.navigate(`${targetBase}/?ws=/member/${extra.escalationMemberId}`);
           resume();
         },
       });
@@ -129,14 +146,20 @@ async function main() {
       escalationMemberId: '99999',
     });
 
+    const m = capability.provenance.model;
+    const discoveryProof =
+      m.provider === 'anthropic'
+        ? `genuine LLM-driven live-UI loop (${m.id}) + compiled artifact`
+        : `scripted live-UI loop (no model key) + compiled artifact — run with ANTHROPIC_API_KEY for a genuine LLM run`;
     writeFileSync(
       'evidence/index.json',
       JSON.stringify(
         {
           artifact: `artifacts/${CAP.capabilityId}.json`,
           artifactSha256: sha,
+          discoveryModel: m,
           runs: [
-            { dir: 'evidence/discovery', proves: 'genuine LLM-driven live-UI loop + compiled artifact' },
+            { dir: 'evidence/discovery', proves: discoveryProof },
             { dir: 'evidence/replay-success', proves: 'no-LLM deterministic replay + typed outputs' },
             { dir: 'evidence/replay-business-outcome', proves: 'business-outcome taxonomy (MEMBER_NOT_FOUND, not a crash)' },
             { dir: 'evidence/replay-tenant-b', proves: 'multi-tenant reuse via approved overlay' },

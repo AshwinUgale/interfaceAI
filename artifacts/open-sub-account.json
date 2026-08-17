@@ -87,7 +87,7 @@
     },
     {
       "id": "step-01",
-      "intent": "Enter the member ID 10001 to search for the member",
+      "intent": "Enter the member ID {memberId} to search for the member",
       "action": "type",
       "target": {
         "context": {
@@ -131,7 +131,7 @@
     },
     {
       "id": "step-02",
-      "intent": "Click Search to look up member 10001",
+      "intent": "Click the Search button to look up member {memberId}",
       "action": "click",
       "target": {
         "context": {
@@ -175,7 +175,8 @@
       "retryPolicy": {
         "maxAttempts": 2,
         "retryOn": [
-          "TRANSIENT_LOAD"
+          "TRANSIENT_LOAD",
+          "CHECKPOINT_TIMEOUT"
         ],
         "safeToRetry": true
       },
@@ -200,7 +201,7 @@
     },
     {
       "id": "step-03",
-      "intent": "Read the member's name and bind to output 'memberName'",
+      "intent": "Read the member's name and bind it to memberName",
       "action": "read",
       "target": {
         "context": {
@@ -244,7 +245,7 @@
     },
     {
       "id": "step-04",
-      "intent": "Read the current savings balance and bind to output 'savingsBalance'",
+      "intent": "Read the current savings balance and bind it to savingsBalance",
       "action": "read",
       "target": {
         "context": {
@@ -291,7 +292,7 @@
     },
     {
       "id": "step-05",
-      "intent": "Click 'Open New Account' to start opening a new savings sub-account",
+      "intent": "Click the Open New Account link to start opening a new savings sub-account",
       "action": "click",
       "target": {
         "context": {
@@ -335,7 +336,8 @@
       "retryPolicy": {
         "maxAttempts": 2,
         "retryOn": [
-          "TRANSIENT_LOAD"
+          "TRANSIENT_LOAD",
+          "CHECKPOINT_TIMEOUT"
         ],
         "safeToRetry": true
       },
@@ -352,7 +354,7 @@
     },
     {
       "id": "step-06",
-      "intent": "Select 'Savings' as the account type for the new sub-account",
+      "intent": "Select Savings as the account type",
       "action": "select",
       "target": {
         "context": {
@@ -380,7 +382,7 @@
         ]
       },
       "value": {
-        "literal": "Savings"
+        "param": "accountType"
       },
       "risk": {
         "class": "reversible_write",
@@ -440,7 +442,7 @@
     },
     {
       "id": "step-08",
-      "intent": "Click 'Continue to Review' to reach the review screen",
+      "intent": "Click Continue to Review button to proceed to the review screen",
       "action": "click",
       "target": {
         "context": {
@@ -490,11 +492,9 @@
         ]
       },
       "retryPolicy": {
-        "maxAttempts": 2,
-        "retryOn": [
-          "TRANSIENT_LOAD"
-        ],
-        "safeToRetry": true
+        "maxAttempts": 1,
+        "retryOn": [],
+        "safeToRetry": false
       },
       "onError": [
         {

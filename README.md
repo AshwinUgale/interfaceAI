@@ -26,7 +26,10 @@ Spawns both tenant apps, runs the whole thread (discovery → artifact → repla
 npm run evidence
 ```
 
-Produces: `evidence/discovery` (live-UI loop + compiled artifact), `evidence/replay-success`,
+Discovery uses the **genuine LLM** when `ANTHROPIC_API_KEY` is set (the committed `evidence/discovery`
+is a real `claude-sonnet-4-5` run — see `evidence/index.json` → `discoveryModel`), otherwise a
+scripted brain that drives the identical observe/act/policy path with no key. Produces:
+`evidence/discovery` (live-UI loop + compiled artifact), `evidence/replay-success`,
 `evidence/replay-business-outcome` (MEMBER_NOT_FOUND), `evidence/replay-tenant-b` (cross-tenant via
 overlay), `evidence/replay-handoff` (session-expiry → same-session human handoff → resume), and
 `evidence/index.json`.

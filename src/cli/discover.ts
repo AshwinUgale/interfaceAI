@@ -18,7 +18,7 @@ import { compile } from '../discovery/compiler.js';
 import { ScriptedBrain } from '../discovery/brain.js';
 import { LlmBrain } from '../discovery/llm-brain.js';
 import type { Brain } from '../discovery/brain.js';
-import { CAP, INPUT_SPECS, OUTPUT_SPECS, OUTPUT_EXTRACT, DEFAULT_INPUTS } from '../discovery/capability-spec.js';
+import { CAP, INPUT_SPECS, OUTPUT_SPECS, OUTPUT_EXTRACT, DEFAULT_INPUTS, ERROR_POLICY } from '../discovery/capability-spec.js';
 
 async function main() {
   const { flags, inputs: cliInputs } = parseArgs(process.argv.slice(2));
@@ -53,7 +53,12 @@ async function main() {
   const evidence = new EvidenceRecorder(outDir);
   const { surface, policy, stop } = await buildSurface('allowlist.json', evidence, { headless: true });
   try {
-    const outcome = await runDiscovery(surface, policy, brain, evidence, { goal, inputs, entryUrl: `${target}/` });
+    const outcome = await runDiscovery(surface, policy, brain, evidence, {
+      goal,
+      inputs,
+      entryUrl: `${target}/`,
+      successText: 'Review New Sub-Account',
+    });
     console.log(`[discover] brain=${brain.name} status=${outcome.status} steps=${outcome.events.length}`);
     if (outcome.status !== 'success') {
       evidence.finalize('run.json', { runId, status: outcome.status, reason: outcome.reason, brain: brain.name });
@@ -75,6 +80,7 @@ async function main() {
       inputSpecs: INPUT_SPECS,
       outputSpecs: OUTPUT_SPECS,
       outputExtract: OUTPUT_EXTRACT,
+      errorPolicy: ERROR_POLICY,
     });
 
     mkdirSync(artifactsDir, { recursive: true });
