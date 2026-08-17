@@ -5,8 +5,9 @@ replay** with no model in the loop → **human handoff** on the same live sessio
 guardrails throughout. Built against a deliberately legacy-style (frameset, nested tables, no test
 IDs) credit-union servicing tool as a stand-in for real bank back-office software.
 
-> Design write-up: [`REPORT.md`](REPORT.md) (seven-section summary). Full internal design and
-> decision log: `docs/DESIGN.md`. *(Both are kept locally and gitignored in this working copy.)*
+> Design write-up: [`REPORT.md`](REPORT.md) — the seven required sections (architecture, artifact
+> schema, determinism & error handling, heterogeneity & multi-tenant, escalation & handoff, safety,
+> cuts).
 
 ## Prerequisites
 
