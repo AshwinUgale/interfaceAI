@@ -131,7 +131,7 @@
     },
     {
       "id": "step-02",
-      "intent": "Click the Search button to find member {memberId}",
+      "intent": "Click the Search button to retrieve member {memberId}'s information",
       "action": "click",
       "target": {
         "context": {
@@ -292,7 +292,7 @@
     },
     {
       "id": "step-05",
-      "intent": "Click the Open New Account link to begin opening a new {accountType} sub-account",
+      "intent": "Click on 'Open New Account' to start opening a new {accountType} sub-account",
       "action": "click",
       "target": {
         "context": {
@@ -442,7 +442,7 @@
     },
     {
       "id": "step-08",
-      "intent": "Click Continue to Review to reach the review screen for the new {accountType} sub-account",
+      "intent": "Click 'Continue to Review' to reach the review screen",
       "action": "click",
       "target": {
         "context": {
@@ -476,7 +476,7 @@
         ]
       },
       "risk": {
-        "class": "reversible_write",
+        "class": "read",
         "approval": "automatic"
       },
       "checkpoint": {
@@ -492,9 +492,12 @@
         ]
       },
       "retryPolicy": {
-        "maxAttempts": 1,
-        "retryOn": [],
-        "safeToRetry": false
+        "maxAttempts": 2,
+        "retryOn": [
+          "TRANSIENT_LOAD",
+          "CHECKPOINT_TIMEOUT"
+        ],
+        "safeToRetry": true
       },
       "onError": [
         {

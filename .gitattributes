@@ -1,0 +1,4 @@
+# Normalize all text to LF in the repo AND working tree, so the committed artifact bytes match the
+# SHA-256 recorded in evidence/index.json on every platform (reproducible hash). Images stay binary.
+* text=auto eol=lf
+*.png binary
