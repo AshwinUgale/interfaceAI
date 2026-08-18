@@ -16,7 +16,7 @@ import { DEFAULT_INPUTS } from '../discovery/capability-spec.js';
 async function main() {
   const { flags, inputs: cliInputs } = parseArgs(process.argv.slice(2));
   const artifactPath = str(flags, 'artifact', 'artifacts/open-sub-account.json');
-  const evidenceDir = str(flags, 'evidence', 'evidence/replay');
+  const evidenceDir = str(flags, 'evidence', 'evidence/_adhoc/replay');
   const approved = flags.approved === true;
 
   let capability = zCapability.parse(JSON.parse(readFileSync(artifactPath, 'utf8')));

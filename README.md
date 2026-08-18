@@ -50,9 +50,12 @@ npm run discover -- --brain llm --target http://localhost:4000 --memberId 10001 
 npm run discover -- --brain scripted --target http://localhost:4000        # no key
 ```
 
-Writes `artifacts/open-sub-account.json` and `evidence/discovery`.
+Ad-hoc `discover`/`replay` runs write to a gitignored scratch dir (`evidence/_adhoc/`) so they never
+clobber the committed submission evidence — inspect the artifact at
+`evidence/_adhoc/open-sub-account.json`. To regenerate the **committed** artifact + full evidence
+set, use `npm run evidence` (below).
 
-**Replay** — deterministic, **no model key required**:
+**Replay** — deterministic, **no model key required** (against the committed artifact):
 
 ```bash
 npm run replay -- --artifact artifacts/open-sub-account.json --memberId 10001 --openingDeposit 500

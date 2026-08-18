@@ -23,13 +23,18 @@ import { CAP, INPUT_SPECS, OUTPUT_SPECS, OUTPUT_EXTRACT, DEFAULT_INPUTS, ERROR_P
 async function main() {
   const { flags, inputs: cliInputs } = parseArgs(process.argv.slice(2));
   const target = str(flags, 'target', 'http://localhost:4000').replace(/\/$/, '');
-  const outDir = str(flags, 'out', 'evidence/discovery');
-  const runId = str(flags, 'run-id', 'disc-001');
-  const artifactsDir = str(flags, 'artifacts', 'artifacts');
+  // Default to a gitignored scratch dir so ad-hoc/demo runs never clobber committed submission
+  // evidence. `npm run evidence` is what regenerates the committed artifact + evidence.
+  const outDir = str(flags, 'out', 'evidence/_adhoc/discovery');
+  const runId = str(flags, 'run-id', 'disc-adhoc');
+  const artifactsDir = str(flags, 'artifacts', 'evidence/_adhoc');
+  const gMember = cliInputs.memberId ?? str(flags, 'memberId', DEFAULT_INPUTS.memberId);
+  const gType = cliInputs.accountType ?? str(flags, 'accountType', DEFAULT_INPUTS.accountType);
+  const gDeposit = cliInputs.openingDeposit ?? str(flags, 'openingDeposit', DEFAULT_INPUTS.openingDeposit);
   const goal = str(
     flags,
     'goal',
-    `Look up member ${cliInputs.memberId ?? DEFAULT_INPUTS.memberId}, read their savings balance, open a ${cliInputs.accountType ?? DEFAULT_INPUTS.accountType} sub-account with a ${cliInputs.openingDeposit ?? DEFAULT_INPUTS.openingDeposit} dollar deposit, and reach the review screen.`
+    `Look up member ${gMember}. Read the member's name and bind it to output 'memberName'. Read the current savings balance and bind it to output 'savingsBalance'. Then open a new ${gType} sub-account with a ${gDeposit} dollar opening deposit and reach the review screen. Do not click Create Account.`
   );
   const inputs = {
     memberId: cliInputs.memberId ?? str(flags, 'memberId', DEFAULT_INPUTS.memberId),

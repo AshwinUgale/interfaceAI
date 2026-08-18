@@ -116,6 +116,11 @@ export function compile(events: ExecutionEvent[], opts: CompileOptions): Capabil
     return t;
   };
 
+  // Map the model's chosen output names to declared specs tolerantly (memberName ~= member_name ~=
+  // membername), so genuine LLM naming variation doesn't break compilation.
+  const norm = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  const declaredOutputByNorm = new Map(opts.outputSpecs.map((o) => [norm(o.name), o.name]));
+
   events.forEach((ev, i) => {
     const id = `step-${String(i).padStart(2, '0')}`;
     // NOTE: the model's free-form expectedEffect is intentionally NOT persisted into the durable
@@ -159,13 +164,16 @@ export function compile(events: ExecutionEvent[], opts: CompileOptions): Capabil
         retryPolicy: FILL_RETRY,
       });
     } else if (ev.action === 'read') {
-      const out = ev.bindOutput!;
-      readStepIdByOutput[out] = id;
+      // Bind to the declared output name (normalized match). A read that matches no declared output
+      // is omitted from the capability rather than breaking it.
+      const declared = declaredOutputByNorm.get(norm(ev.bindOutput ?? ''));
+      if (!declared) return;
+      readStepIdByOutput[declared] = id;
       steps.push({
         ...common,
         action: 'read',
         target: descriptorFrom(ev.resolved, false, ev.resolved.anchorText || undefined),
-        bindOutput: out,
+        bindOutput: declared,
         risk: riskFor('read'),
         retryPolicy: READ_RETRY,
       });
@@ -187,17 +195,21 @@ export function compile(events: ExecutionEvent[], opts: CompileOptions): Capabil
     }
   });
 
-  const outputs: Output[] = opts.outputSpecs.map((o) => ({
-    name: o.name,
-    type: o.type,
-    sensitivity: o.sensitivity,
-    ...(o.description ? { description: o.description } : {}),
-    extract: {
-      stepId: readStepIdByOutput[o.name] ?? 'step-00',
-      kind: opts.outputExtract[o.name]?.kind ?? 'text',
-      ...(opts.outputExtract[o.name]?.parse ? { parse: opts.outputExtract[o.name]!.parse } : {}),
-    },
-  }));
+  // Emit outputs only for specs the model actually read (bound to their read step) — a valid,
+  // possibly-narrower capability instead of a compile error.
+  const outputs: Output[] = opts.outputSpecs
+    .filter((o) => readStepIdByOutput[o.name])
+    .map((o) => ({
+      name: o.name,
+      type: o.type,
+      sensitivity: o.sensitivity,
+      ...(o.description ? { description: o.description } : {}),
+      extract: {
+        stepId: readStepIdByOutput[o.name]!,
+        kind: opts.outputExtract[o.name]?.kind ?? 'text',
+        ...(opts.outputExtract[o.name]?.parse ? { parse: opts.outputExtract[o.name]!.parse } : {}),
+      },
+    }));
 
   const capability: Capability = {
     schemaVersion: SCHEMA_VERSION,
